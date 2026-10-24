@@ -1,0 +1,473 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Sooner Buddies — Campus RPG</title>
+<style>
+:root{--crimson:#841b2d;--deep:#210b12;--gold:#f2c66d;--paper:#fffaf0;--muted:#a99ba0;--panel:#2d151d;--line:#59313b;--green:#8cdaa8}
+*{box-sizing:border-box}body{margin:0;background:radial-gradient(ellipse at 50% -20%,#622032 0,#210b12 56%);color:var(--paper);font:15px/1.5 Inter,system-ui,-apple-system,Segoe UI,sans-serif;min-height:100vh}button,input,select{font:inherit}button{cursor:pointer}button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid var(--gold);outline-offset:3px}.app{display:grid;grid-template-columns:245px minmax(0,1fr);min-height:100vh}.sidebar{background:#19080e;border-right:1px solid #49232d;padding:25px 16px;display:flex;flex-direction:column;gap:25px}.brand{display:flex;gap:12px;align-items:center;padding:0 9px}.crest{width:42px;height:42px;border-radius:13px;background:linear-gradient(135deg,#f7d78f,#bf8b37);color:#48101d;display:grid;place-items:center;font-size:25px;font-weight:900}.brand strong{display:block;font-size:17px;letter-spacing:.3px}.brand small{color:var(--gold);font-size:10px;letter-spacing:2px;text-transform:uppercase}.nav-label{font-size:10px;color:#806c73;letter-spacing:1.8px;padding:0 12px;margin-bottom:5px}.nav{display:grid;gap:5px}.nav button{border:0;background:transparent;color:#c4b5b9;text-align:left;padding:11px 12px;border-radius:10px;display:flex;align-items:center;gap:12px}.nav button span:first-child{width:22px;text-align:center;font-size:17px}.nav button:hover,.nav button.active{background:#421a27;color:#ffe5aa}.nav button.active{box-shadow:inset 3px 0 var(--gold)}.side-bottom{margin-top:auto;border:1px solid var(--line);background:#28111a;border-radius:14px;padding:15px}.side-bottom small{color:var(--muted)}.campus-dot{display:inline-block;width:7px;height:7px;background:var(--green);border-radius:50%;margin-right:6px}.main{min-width:0;padding:24px clamp(16px,3vw,42px) 48px}.topbar{display:flex;align-items:center;justify-content:space-between;gap:15px;margin-bottom:27px}.eyebrow{font-size:11px;letter-spacing:2px;color:var(--gold);text-transform:uppercase}.topbar h1{margin:3px 0 0;font-size:25px;letter-spacing:-.6px}.user-chip{display:flex;align-items:center;gap:10px;background:#32151f;border:1px solid #60313e;border-radius:30px;padding:7px 14px 7px 7px}.user-avatar{display:grid;place-items:center;width:34px;height:34px;border-radius:50%;background:#e6b957;color:#4b1420;font-weight:900}.user-chip small{display:block;color:var(--muted);font-size:11px}.view{display:none;animation:appear .2s ease}.view.active{display:block}@keyframes appear{from{opacity:.3;transform:translateY(4px)}to{opacity:1;transform:none}}.hero{position:relative;overflow:hidden;background:linear-gradient(110deg,#761a2e,#421322 70%);border:1px solid #8a3b4d;border-radius:20px;padding:28px 30px;margin-bottom:20px;min-height:188px;display:flex;align-items:center;justify-content:space-between;gap:15px}.hero:after{content:"✦";position:absolute;right:19%;top:-67px;font-size:250px;color:#ffffff08;pointer-events:none}.hero h2{font-size:clamp(23px,3vw,34px);line-height:1.12;max-width:520px;margin:10px 0}.hero p{color:#e2c6cb;max-width:500px;margin:8px 0 17px}.hero-art{font-size:88px;filter:drop-shadow(0 12px 12px #18070a80);padding:0 20px}.btn{border:1px solid #b77a35;background:var(--gold);color:#35101a;font-weight:800;border-radius:9px;padding:10px 15px}.btn:hover{filter:brightness(1.08);transform:translateY(-1px)}.btn.secondary{background:#411824;color:#f6dba0;border-color:#75404b}.btn.ghost{background:transparent;border-color:#68404a;color:#eadde0}.btn:disabled{opacity:.45;cursor:not-allowed;transform:none}.section-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:24px 0 13px}.section-head h2{font-size:17px;margin:0}.section-head p{color:var(--muted);font-size:12px;margin:2px 0}.stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin:17px 0 23px}.stat,.panel,.tile{background:linear-gradient(145deg,#321721,#261119);border:1px solid var(--line);border-radius:14px}.stat{padding:16px}.stat-top{display:flex;justify-content:space-between;color:var(--muted);font-size:12px}.stat-icon{font-size:19px}.stat strong{display:block;font-size:26px;letter-spacing:-.5px;margin:8px 0 0}.stat small{color:var(--gold);font-size:11px}.columns{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(250px,1fr);gap:15px}.panel{padding:18px}.panel h3{margin:0 0 5px;font-size:15px}.muted{color:var(--muted)}.tiny{font-size:12px}.progress{height:7px;background:#4b3038;border-radius:10px;overflow:hidden;margin:12px 0}.progress span{display:block;height:100%;background:linear-gradient(90deg,#b17a32,#f7d78e);border-radius:10px}.event-row,.list-row{display:flex;align-items:center;gap:12px;padding:13px 0;border-bottom:1px solid #482832}.event-row:last-child,.list-row:last-child{border-bottom:0}.event-date{width:47px;flex-shrink:0;border:1px solid #77404b;border-radius:9px;text-align:center;padding:5px;color:var(--gold);font-size:10px;line-height:1.4}.event-date b{display:block;font-size:17px}.grow{flex:1;min-width:0}.grow strong{display:block;font-size:13px}.grow small{color:var(--muted);font-size:11px}.pill{display:inline-flex;align-items:center;gap:5px;border:1px solid #67404a;border-radius:99px;padding:4px 8px;font-size:10px;color:#f4dca9;white-space:nowrap}.cards{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:13px}.tile{padding:17px;min-width:0}.tile-visual{height:100px;display:grid;place-items:center;font-size:49px;background:radial-gradient(ellipse,#6a293b,#32151f 68%);border-radius:10px;margin-bottom:13px}.tile h3{font-size:14px;margin:0 0 4px;overflow-wrap:anywhere}.tile p{font-size:12px;color:var(--muted);margin:0 0 13px}.tile-bottom{display:flex;align-items:center;justify-content:space-between;gap:8px}.price{color:var(--gold);font-weight:800;font-size:13px}.small-btn{font-size:11px;padding:7px 10px}.filters{display:flex;flex-wrap:wrap;gap:8px;margin:13px 0}.filters button{background:#321721;color:#d7c7cb;border:1px solid #59313b;padding:7px 12px;border-radius:8px;font-size:12px}.filters button.active{background:#6c1c30;border-color:#b37b42;color:#ffe7ad}.field{display:grid;gap:5px;margin:10px 0}.field label{font-size:12px;color:#d7c7cb}.field input,.field select{background:#1c0b11;color:var(--paper);border:1px solid #63404a;border-radius:8px;padding:10px;width:100%}.form-row{display:grid;grid-template-columns:1fr 1fr;gap:10px}.avatar-stage{min-height:270px;display:grid;place-items:center;background:radial-gradient(ellipse,#6a283b 0,#31141e 55%,#241018);border:1px solid #683442;border-radius:15px;position:relative;overflow:hidden}.avatar-emoji{font-size:110px;filter:drop-shadow(0 12px 9px #12060a);text-align:center}.avatar-stage .level-tag{position:absolute;top:13px;right:13px}.avatar-equipped{display:flex;flex-wrap:wrap;gap:6px;justify-content:center;margin:10px}.empty{text-align:center;padding:30px 15px;color:var(--muted)}.leader-row{display:grid;grid-template-columns:38px minmax(100px,1fr) repeat(2,minmax(70px,.5fr));gap:10px;align-items:center;padding:13px 8px;border-bottom:1px solid #482832}.leader-row.me{background:#4a1c2a;border-radius:8px}.leader-row.head{font-size:10px;letter-spacing:1px;text-transform:uppercase;color:var(--muted)}.rank{font-weight:900;color:var(--gold);font-size:17px}.leader-name{font-size:13px;font-weight:700;overflow-wrap:anywhere}.leader-name small{display:block;font-size:11px;color:var(--muted);font-weight:400}.leader-val{font-size:12px;text-align:right}.toast{position:fixed;right:22px;bottom:22px;background:#f3d18a;color:#35101a;padding:13px 18px;border-radius:10px;font-weight:750;box-shadow:0 8px 35px #0007;opacity:0;transform:translateY(12px);transition:.2s;pointer-events:none;z-index:20;max-width:min(420px,calc(100vw - 44px))}.toast.show{opacity:1;transform:none}.mobile-menu{display:none}.footer-note{color:#806c73;text-align:center;font-size:11px;margin-top:35px}
+@media(max-width:950px){.app{grid-template-columns:205px minmax(0,1fr)}.sidebar{padding:20px 10px}.stats{grid-template-columns:repeat(2,minmax(0,1fr))}.cards{grid-template-columns:repeat(2,minmax(0,1fr))}.hero-art{font-size:64px}.columns{grid-template-columns:1fr}}
+@media(max-width:650px){.app{display:block}.sidebar{position:fixed;z-index:4;left:0;top:0;bottom:0;width:260px;transform:translateX(-102%);transition:transform .2s;box-shadow:10px 0 30px #0008}.sidebar.open{transform:none}.main{padding:17px 14px 35px}.mobile-menu{display:inline-flex;background:#32151f;color:var(--gold);border:1px solid #68404a;border-radius:8px;padding:8px 10px}.topbar{margin-bottom:20px}.topbar h1{font-size:21px}.user-chip{padding-right:9px}.user-chip>div:last-child{display:none}.hero{padding:22px 19px;min-height:180px}.hero-art{display:none}.hero h2{font-size:27px}.stats{gap:9px}.stat{padding:12px}.stat strong{font-size:23px}.cards{grid-template-columns:repeat(2,minmax(0,1fr))}.tile{padding:12px}.tile-visual{height:78px;font-size:40px}.leader-row{grid-template-columns:26px minmax(75px,1fr) 65px 65px;gap:6px;padding:12px 2px}.leader-name{font-size:11px}.leader-val{font-size:11px}.form-row{grid-template-columns:1fr}.section-head{align-items:flex-start}}
+
+/* ---- sign-in screen ---- */
+[hidden]{display:none!important}
+body.locked .app{display:none}
+.auth{position:fixed;inset:0;z-index:10;display:grid;place-items:center;padding:20px;overflow:auto;background:radial-gradient(ellipse at 50% -20%,#622032 0,#210b12 60%)}
+.auth-card{width:min(430px,100%);background:linear-gradient(145deg,#321721,#261119);border:1px solid var(--line);border-radius:18px;padding:28px;box-shadow:0 20px 60px #0008}
+.auth-card h2{margin:22px 0 4px;font-size:22px;letter-spacing:-.4px}
+.auth-tabs{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin:18px 0 8px}
+.auth-tabs button{background:#321721;color:#d7c7cb;border:1px solid #59313b;padding:9px;border-radius:9px;font-weight:700}
+.auth-tabs button.active{background:#6c1c30;border-color:#b37b42;color:#ffe7ad}
+.auth-msg{min-height:22px;font-size:13px;margin:12px 0 4px}
+.auth-msg.error{color:#ff9aa8}.auth-msg.ok{color:var(--green)}
+.auth .btn{width:100%;padding:12px}
+.auth-note{color:#806c73;font-size:11px;margin:14px 0 0;line-height:1.5}
+.warn{border:1px solid #b77a35;background:#3b2415;color:#f6dba0;border-radius:10px;padding:12px 14px;font-size:13px;margin-top:16px}
+</style>
+</head>
+<body class="locked">
+
+<!-- ================= SIGN IN / CREATE ACCOUNT ================= -->
+<div class="auth" id="authScreen" hidden>
+  <div class="auth-card">
+    <div class="brand" style="padding:0"><div class="crest">S</div><div><strong>Sooner Buddies</strong><small>Campus quest guild</small></div></div>
+    <h2>Join the guild</h2>
+    <p class="muted tiny" style="margin:0">Create an account to save your progress and appear on the live leaderboard.</p>
+    <div class="auth-tabs" role="tablist" aria-label="Account">
+      <button type="button" class="active" data-mode="signup" role="tab">Create account</button>
+      <button type="button" data-mode="signin" role="tab">Sign in</button>
+    </div>
+    <form id="authForm">
+      <div class="field" id="nameField"><label for="signupName">Display name</label><input id="signupName" maxlength="30" placeholder="What should adventurers call you?" autocomplete="nickname"></div>
+      <div class="field"><label for="email">Email</label><input id="email" type="email" required autocomplete="email" placeholder="you@example.com"></div>
+      <div class="field"><label for="password">Password</label><input id="password" type="password" required minlength="6" autocomplete="new-password" placeholder="At least 6 characters"></div>
+      <div class="auth-msg" id="authMsg" role="status" aria-live="polite"></div>
+      <button class="btn" id="authSubmit" type="submit">Create account</button>
+    </form>
+    <p class="auth-note">This is a live demo. Your display name, major, and game stats are visible on the leaderboard. Your email, password, gender, and classes are never shown to other players.</p>
+    <div class="warn" id="setupWarn" hidden></div>
+  </div>
+</div>
+
+<div class="app">
+<aside class="sidebar" id="sidebar">
+  <div class="brand"><div class="crest">S</div><div><strong>Sooner Buddies</strong><small>Campus quest guild</small></div></div>
+  <div><div class="nav-label">YOUR ADVENTURE</div><nav class="nav" id="nav">
+  <button class="active" data-view="dashboard"><span>⌂</span> Dashboard</button>
+  <button data-view="avatar"><span>♙</span> Avatar & Shop</button>
+  <button data-view="parties"><span>⚔</span> Parties</button>
+  <button data-view="dungeons"><span>▤</span> Study Dungeons</button>
+  <button data-view="raids"><span>✦</span> Campus Raids</button>
+  <button data-view="clans"><span>♜</span> Clans</button>
+  <button data-view="leaderboards"><span>♛</span> Leaderboards</button>
+  </nav></div>
+  <div class="side-bottom"><div style="font-weight:750;margin-bottom:5px">🛡️ Guild status</div><div class="tiny"><span class="campus-dot"></span>Live shared data</div><small>Norman, Oklahoma · OU</small><div class="progress"><span style="width:72%"></span></div><small>Keep your streak alive.</small><button class="btn ghost small-btn" id="signOutBtn" style="margin-top:12px;width:100%">Sign out</button></div>
+</aside>
+<main class="main">
+<header class="topbar"><div style="display:flex;align-items:center;gap:11px"><button class="mobile-menu" id="menuBtn" aria-label="Open menu">☰</button><div><div class="eyebrow">University of Oklahoma</div><h1 id="pageTitle">Adventurer dashboard</h1></div></div><div class="user-chip"><div class="user-avatar">S</div><div><strong id="headerName">Adventurer</strong><small id="headerLevel">Level 1 · Scholar</small></div></div></header>
+<section class="view active" id="view-dashboard">
+<div class="hero"><div><div class="eyebrow">✦ Your next chapter starts here</div><h2>Study together.<br>Level up together.</h2><p>Turn study sessions and campus events into quests. Find your party, earn Crimson Crystals, and build your legend at OU.</p><button class="btn" data-go="dungeons">Enter a dungeon&nbsp; →</button></div><div class="hero-art">🛡️</div></div>
+<div class="stats">
+<div class="stat"><div class="stat-top">Crimson Crystals <span class="stat-icon">◆</span></div><strong id="ccStat">0</strong><small>✦ Spend in the avatar shop</small></div>
+<div class="stat"><div class="stat-top">Experience points <span class="stat-icon">⚡</span></div><strong id="xpStat">0</strong><small id="xpNext">250 XP to next level</small></div>
+<div class="stat"><div class="stat-top">Study time <span class="stat-icon">📚</span></div><strong id="studyStat">0.0h</strong><small>⚔️ Time spent fighting</small></div>
+<div class="stat"><div class="stat-top">Raids attended <span class="stat-icon">✦</span></div><strong id="raidStat">0</strong><small>Campus events completed</small></div>
+</div>
+<div class="columns">
+<div class="panel"><div class="section-head" style="margin-top:0"><div><h2>Upcoming campus raids</h2><p>Find your next campus adventure</p></div><button class="btn secondary small-btn" data-go="raids">All raids →</button></div><div id="dashboardEvents"></div></div>
+<div class="panel"><div class="section-head" style="margin-top:0"><div><h2>Your next level</h2><p>Every quest makes you stronger</p></div><span class="pill">LEVEL <span id="levelPill">1</span></span></div><div style="display:flex;align-items:center;gap:15px;margin:15px 0"><div style="font-size:43px">🧙</div><div class="grow"><strong id="dashName">Adventurer</strong><div class="muted tiny" id="dashMajor">Undeclared · OU adventurer</div><div class="progress"><span id="xpBar" style="width:0%"></span></div><small class="muted" id="xpLabel">0 / 250 XP</small></div></div><div class="list-row"><span>📖</span><div class="grow"><strong>Focus sessions</strong><small>Every completed session counts</small></div><span class="pill" id="sessionPill">0 sessions</span></div><div class="list-row"><span>👥</span><div class="grow"><strong>Party status</strong><small id="partyStatus">Looking for your next party</small></div><button class="btn secondary small-btn" data-go="parties">Find party</button></div></div>
+</div>
+<div class="section-head"><div><h2>Quick quests</h2><p>Small steps, real progress</p></div></div>
+<div class="cards">
+<div class="tile"><div class="tile-visual">📚</div><h3>Study for 30 minutes</h3><p>Start a focused session in an OU study dungeon.</p><button class="btn secondary small-btn" data-go="dungeons">Find a dungeon</button></div>
+<div class="tile"><div class="tile-visual">⚔️</div><h3>Join a campus raid</h3><p>Attend an event and earn XP with your party.</p><button class="btn secondary small-btn" data-go="raids">Browse raids</button></div>
+<div class="tile"><div class="tile-visual">✨</div><h3>Style your avatar</h3><p>Make your adventurer unmistakably yours.</p><button class="btn secondary small-btn" data-go="avatar">Visit the shop</button></div>
+</div>
+</section>
+<section class="view" id="view-avatar">
+<div class="section-head" style="margin-top:0"><div><h2>Avatar forge</h2><p>Equip your adventurer with Crimson Crystal cosmetics.</p></div><span class="pill">◆ <span id="shopBalance">0</span> CC</span></div>
+<div class="columns"><div><div class="avatar-stage"><span class="pill level-tag">LEVEL <span id="avatarLevel">1</span></span><div><div class="avatar-emoji" id="avatarEmoji">🧙</div><div style="text-align:center;font-weight:800" id="avatarDisplayName">Adventurer</div><div class="avatar-equipped" id="equippedList"></div></div></div><div class="panel" style="margin-top:13px"><h3>Adventurer profile</h3><div class="form-row"><div class="field"><label for="nameInput">Display name</label><input id="nameInput" maxlength="30"></div><div class="field"><label for="genderInput">Gender</label><select id="genderInput"><option>Prefer not to say</option><option>Male</option><option>Female</option><option>Non-binary</option></select></div></div><div class="field"><label for="majorInput">Major</label><input id="majorInput" maxlength="60"></div><div class="field"><label for="classInput">Current classes (comma separated)</label><input id="classInput" maxlength="200" placeholder="Statics, Calculus II, Physics I"></div><button class="btn" id="saveProfile">Save profile</button></div></div>
+<div><div class="filters" id="shopFilters"><button class="active" data-cat="All">All items</button><button data-cat="Hair">Hair</button><button data-cat="Hats">Hats</button><button data-cat="Shirts">Shirts</button><button data-cat="Pants">Pants</button><button data-cat="Shoes">Shoes</button><button data-cat="Accessories">Accessories</button><button data-cat="Eyewear">Eyewear</button></div><div class="cards" id="shopGrid"></div></div></div>
+</section>
+<section class="view" id="view-parties">
+<div class="hero"><div><div class="eyebrow">Find your people</div><h2>No adventurer studies alone.</h2><p>Create a party for a study session, recruit classmates, or join a group headed to a campus event.</p><button class="btn" id="createPartyBtn">＋ Create a party</button></div><div class="hero-art">🧑‍🤝‍🧑</div></div>
+<div class="section-head"><div><h2>Open parties</h2><p>Join a group that matches your quest</p></div><span class="pill" id="partyCount">0 parties recruiting</span></div><div class="cards" id="partyGrid"></div>
+<div class="section-head"><div><h2>Your parties</h2><p>Groups you have joined or created</p></div></div><div class="panel" id="myParties"></div>
+</section>
+<section class="view" id="view-dungeons">
+<div class="hero"><div><div class="eyebrow">⚔️ Study = experience</div><h2>Enter the study dungeons.</h2><p>Choose a real-world study spot, start a focus session, and earn Crimson Crystals and XP for your effort. Locations and hours shown are illustrative prototype data.</p><button class="btn" id="startFocusBtn">▶ Start focus session</button></div><div class="hero-art">🏰</div></div>
+<div class="stats"><div class="stat"><div class="stat-top">Total study time <span>📚</span></div><strong id="dungeonStudy">0.0h</strong><small>Across all sessions</small></div><div class="stat"><div class="stat-top">Sessions completed <span>✓</span></div><strong id="sessionStat">0</strong><small>Every session counts</small></div><div class="stat"><div class="stat-top">Dungeon rewards <span>◆</span></div><strong id="dungeonRewards">+0</strong><small>CC earned this visit</small></div><div class="stat"><div class="stat-top">Focus timer <span>⏱</span></div><strong id="timerDisplay">25:00</strong><small id="timerStatus">Ready when you are</small></div></div>
+<div class="section-head"><div><h2>Choose a dungeon</h2><p>Find your next study spot around OU</p></div><span class="pill">Norman · OU campus</span></div><div class="cards" id="dungeonGrid"></div>
+<div class="panel" style="margin-top:15px"><h3>Focus session</h3><p class="muted tiny">Choose a duration, then start. The server times your session and pays out when it finishes. If you refresh, your session picks up where it left off. The 1 minute option is there for quick demos.</p><div class="filters" id="durationFilters"><button data-min="1">1 min · demo</button><button data-min="25" class="active">25 min</button><button data-min="45">45 min</button><button data-min="60">60 min</button></div><div style="display:flex;gap:9px;flex-wrap:wrap"><button class="btn" id="timerToggle">▶ Start timer</button><button class="btn secondary" id="timerReset">↺ Reset</button></div></div>
+</section>
+<section class="view" id="view-raids">
+<div class="hero"><div><div class="eyebrow">Campus events · Real-world quests</div><h2>Make campus your adventure.</h2><p>Find events, gather a party, and earn rewards for showing up. Live OU Engage integration is not connected in this demo, so these events are sample data.</p><button class="btn" id="joinFirstRaid">＋ Join a raid</button></div><div class="hero-art">🏟️</div></div>
+<div class="filters" id="raidFilters"><button class="active" data-filter="All">All events</button><button data-filter="Academic">Academic</button><button data-filter="Social">Social</button><button data-filter="Career">Career</button><button data-filter="Wellness">Wellness</button></div><div class="panel" id="raidList"></div>
+</section>
+<section class="view" id="view-clans">
+<div class="hero"><div><div class="eyebrow">Stronger as a guild</div><h2>Find your clan. Build your legacy.</h2><p>Clans bring student organizations, clubs, fraternities, and sororities together around studying, events, and shared achievements.</p><button class="btn" id="createClanBtn">＋ Create a clan</button></div><div class="hero-art">🏰</div></div>
+<div class="stats"><div class="stat"><div class="stat-top">Clans in the realm <span>♜</span></div><strong id="clanCount">0</strong><small>Sample and player-founded</small></div><div class="stat"><div class="stat-top">Your clan <span>🛡️</span></div><strong id="myClanName" style="font-size:20px;overflow-wrap:anywhere">None yet</strong><small>Join to contribute</small></div><div class="stat"><div class="stat-top">Clan XP contributed <span>⚡</span></div><strong id="clanXP">0</strong><small>From your activity</small></div><div class="stat"><div class="stat-top">Clan CC contributed <span>◆</span></div><strong id="clanCC">0</strong><small>Shared contribution score</small></div></div>
+<div class="section-head"><div><h2>Discover clans</h2><p>Find a community that fits your quest</p></div></div><div class="cards" id="clanGrid"></div><div class="section-head"><div><h2>Your clan contributions</h2><p>Individual activity helps your clan level up.</p></div></div><div class="panel" id="clanContribution"><div class="empty">Join a clan to start building your shared legacy.</div></div>
+</section>
+<section class="view" id="view-leaderboards">
+<div class="hero"><div><div class="eyebrow">Hall of legends</div><h2>Who’s leading the realm?</h2><p>Celebrate the scholars, event-goers, and guilds making campus life legendary.</p></div><div class="hero-art">🏆</div></div>
+<div class="filters" id="boardType"><button class="active" data-type="players">Individual players</button><button data-type="clans">Clans</button></div><div class="filters" id="boardMetric"><button class="active" data-metric="level">Highest level</button><button data-metric="cc">Most CC</button><button data-metric="raids">Most raids</button><button data-metric="study">Most study time</button></div><div class="panel"><div class="section-head" style="margin-top:0"><div><h2 id="boardTitle">Top adventurers</h2><p id="boardSub">Ranked by highest level</p></div><span class="pill">🏆 Season 01</span></div><div id="leaderTable"></div><p class="muted tiny" style="margin:15px 0 0">Live rankings from everyone signed up for this demo. Updates every 10 seconds while you are on this page.</p></div>
+</section>
+<div class="footer-note">SOONER BUDDIES · A campus RPG concept · Live demo</div>
+</main></div><div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+// ===================== CONFIG: paste your Supabase values here =====================
+// Supabase dashboard -> Project Settings -> API (or the "Connect" button).
+// The URL and the anon / publishable key are SAFE to publish; row-level security protects the data.
+// Never paste the "service_role" or "secret" key here.
+const SUPABASE_URL='https://qeqrzsszxdkbcgusbtgh.supabase.co';
+const SUPABASE_ANON_KEY='sb_publishable_0eUAgKL9sw_AZYbmmcM8hA_Q5cOWNir';
+// ====================================================================================
+
+const $=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)];
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const fmt=n=>Number(n).toLocaleString('en-US');
+
+const configured=!SUPABASE_URL.includes('YOUR-PROJECT')&&!SUPABASE_ANON_KEY.startsWith('YOUR-');
+const sb=(configured&&window.supabase)?window.supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY):null;
+
+let userId=null,currentView='dashboard';
+let events=[],items=[],parties=[],clans=[],players=[];
+const state={name:'Adventurer',gender:'Prefer not to say',major:'Undeclared',classes:'',cc:0,xp:0,study:0,raids:0,level:1,sessions:0,joinedRaids:[],owned:[],equipped:[],avatar:'🧙',clanId:null,clanCC:0,clanXP:0,sessionStarted:null,sessionMinutes:null};
+
+// Static info only (no stats depend on it)
+const dungeons=[
+{name:'Bizzell Memorial Library',icon:'🏛️',type:'Library',hours:'24/7 when campus is open',desc:'Quiet floors, research resources, and solo deep-work zones.',cc:25,xp:35},
+{name:'Engineering Practice Facility',icon:'⚙️',type:'Study space',hours:'Hours vary by access',desc:'A convenient base for engineering homework and group work.',cc:25,xp:35},
+{name:'Sarkeys Energy Center',icon:'🔬',type:'Academic building',hours:'Building access varies',desc:'A campus study stop near science and engineering classes.',cc:20,xp:30},
+{name:'Student Learning Center',icon:'📖',type:'Learning center',hours:'Check campus schedule',desc:'Bring a study buddy and tackle the hardest assignments.',cc:30,xp:40},
+{name:'Price College Study Lounge',icon:'💼',type:'Study lounge',hours:'Access and hours vary',desc:'A place to review notes and plan the next quest.',cc:20,xp:30},
+{name:'Campus Computer Lab',icon:'💻',type:'Computer lab',hours:'Varies by lab',desc:'Work on coding, reports, and project deadlines.',cc:25,xp:35}
+];
+
+function toast(msg){const t=$('#toast');t.textContent=msg;t.classList.add('show');clearTimeout(toast.tm);toast.tm=setTimeout(()=>t.classList.remove('show'),3000)}
+
+// ---------- server calls ----------
+async function rpc(name,args,silent){
+  const {data,error}=await sb.rpc(name,args||{});
+  if(error){if(!silent)toast(error.message);throw error}
+  return data;
+}
+async function query(promise){const {data,error}=await promise;if(error)throw error;return data}
+
+// ---------- profile <-> state ----------
+function applyProfile(p){
+  Object.assign(state,{name:p.display_name,gender:p.gender,major:p.major,classes:p.classes,cc:p.cc,xp:p.xp,level:p.level,study:Number(p.study_hours),sessions:p.sessions,raids:p.raids,avatar:p.avatar,owned:p.owned||[],equipped:p.equipped||[],clanId:p.clan_id,clanCC:p.clan_cc,clanXP:p.clan_xp,sessionStarted:p.session_started,sessionMinutes:p.session_minutes});
+  updateUI();
+}
+function afterReward(p,msg){const prev=state.level;applyProfile(p);toast(p.level>prev?`${msg} · Level up! You reached level ${p.level}.`:msg)}
+function fillProfileForm(){$('#nameInput').value=state.name;$('#genderInput').value=state.gender;$('#majorInput').value=state.major;$('#classInput').value=state.classes}
+
+function updateUI(){
+  const levelXP=state.level*250;
+  $('#ccStat').textContent=fmt(state.cc);$('#xpStat').textContent=fmt(state.xp);
+  $('#studyStat').textContent=state.study.toFixed(1)+'h';$('#raidStat').textContent=state.raids;
+  $('#xpNext').textContent=fmt(Math.max(0,levelXP-state.xp))+' XP to next level';
+  $('#headerName').textContent=state.name;$('#headerLevel').textContent=`Level ${state.level} · Scholar`;
+  $('.user-avatar').textContent=(state.name.trim()[0]||'S').toUpperCase();
+  $('#dashName').textContent=state.name;$('#dashMajor').textContent=state.major+' · OU adventurer';
+  $('#levelPill').textContent=state.level;$('#xpLabel').textContent=`${fmt(state.xp)} / ${fmt(levelXP)} XP`;
+  $('#xpBar').style.width=Math.min(100,state.xp/levelXP*100)+'%';
+  $('#sessionPill').textContent=state.sessions+(state.sessions===1?' session':' sessions');
+  $('#shopBalance').textContent=fmt(state.cc);$('#avatarLevel').textContent=state.level;
+  $('#avatarDisplayName').textContent=state.name;$('#avatarEmoji').textContent=state.avatar;
+  $('#dungeonStudy').textContent=state.study.toFixed(1)+'h';$('#sessionStat').textContent=state.sessions;
+  const mine=clans.find(c=>c.id===state.clanId);
+  $('#myClanName').textContent=mine?mine.name:'None yet';
+  $('#clanXP').textContent=fmt(state.clanXP);$('#clanCC').textContent=fmt(state.clanCC);
+  $('#equippedList').innerHTML=state.equipped.map(x=>`<span class="pill">${esc(x)}</span>`).join('');
+  renderClanContribution();
+}
+
+// ---------- navigation ----------
+function navigate(view){
+  currentView=view;
+  $$('.view').forEach(v=>v.classList.toggle('active',v.id==='view-'+view));
+  $$('#nav button').forEach(b=>b.classList.toggle('active',b.dataset.view===view));
+  const titles={dashboard:'Adventurer dashboard',avatar:'Avatar & crystal shop',parties:'Party finder',dungeons:'Study dungeons',raids:'Campus raids',clans:'Clan hall',leaderboards:'Hall of legends'};
+  $('#pageTitle').textContent=titles[view]||'Sooner Buddies';
+  $('#sidebar').classList.remove('open');window.scrollTo({top:0,behavior:'smooth'});
+  if(userId){
+    if(view==='leaderboards')refreshBoard().catch(()=>{});
+    if(view==='parties')loadParties().catch(()=>{});
+    if(view==='clans')loadClans().catch(()=>{});
+  }
+}
+document.addEventListener('click',e=>{const b=e.target.closest('[data-go]');if(b)navigate(b.dataset.go);const n=e.target.closest('[data-view]');if(n)navigate(n.dataset.view)});
+$('#menuBtn').onclick=()=>$('#sidebar').classList.toggle('open');
+
+// ---------- raids ----------
+function eventMarkup(e){const joined=state.joinedRaids.includes(e.id);return `<div class="event-row"><div class="event-date">${esc(e.date)}<b>${esc(e.day)}</b></div><div class="grow"><strong>${esc(e.title)}</strong><small>${esc(e.time)} · ${esc(e.place)}</small><div style="margin-top:5px"><span class="pill">${esc(e.category)}</span> <span class="pill">◆ ${e.reward} CC</span> <span class="pill">⚡ ${e.xp} XP</span></div></div><button class="btn ${joined?'ghost':'secondary'} small-btn" data-raid="${e.id}" ${joined?'disabled':''}>${joined?'Joined ✓':'Join raid'}</button></div>`}
+function renderEvents(){
+  $('#dashboardEvents').innerHTML=events.slice(0,3).map(eventMarkup).join('')||'<div class="empty">No events yet.</div>';
+  const filter=$('#raidFilters .active')?.dataset.filter||'All';
+  const list=events.filter(e=>filter==='All'||e.category===filter);
+  $('#raidList').innerHTML=list.map(eventMarkup).join('')||'<div class="empty">No events in this category.</div>';
+}
+document.addEventListener('click',async e=>{
+  const b=e.target.closest('[data-raid]');if(!b||b.disabled)return;
+  const id=Number(b.dataset.raid),ev=events.find(x=>x.id===id);if(!ev)return;
+  b.disabled=true;
+  try{const p=await rpc('join_raid',{p_event:id});state.joinedRaids.push(id);afterReward(p,`Raid joined: ${ev.title}. +${ev.reward} CC, +${ev.xp} XP`);renderEvents()}
+  catch{b.disabled=false}
+});
+$('#raidFilters').onclick=e=>{const b=e.target.closest('button[data-filter]');if(!b)return;$$('#raidFilters button').forEach(x=>x.classList.toggle('active',x===b));renderEvents()};
+$('#joinFirstRaid').onclick=()=>{navigate('raids');toast('Choose an event to join your first raid.')};
+
+// ---------- shop ----------
+let shopCat='All';
+function renderShop(){
+  const list=items.filter(i=>shopCat==='All'||i.cat===shopCat);
+  $('#shopGrid').innerHTML=list.map(i=>{const owned=state.owned.includes(i.name);return `<div class="tile"><div class="tile-visual">${esc(i.icon)}</div><h3>${esc(i.name)}</h3><p>${esc(i.desc)}</p><div class="tile-bottom"><span class="price">◆ ${i.price} CC</span><button class="btn ${owned?'ghost':'secondary'} small-btn" data-buy="${esc(i.name)}" ${owned?'disabled':''}>${owned?'Owned ✓':'Buy item'}</button></div></div>`}).join('');
+}
+$('#shopFilters').onclick=e=>{const b=e.target.closest('button[data-cat]');if(!b)return;shopCat=b.dataset.cat;$$('#shopFilters button').forEach(x=>x.classList.toggle('active',x===b));renderShop()};
+document.addEventListener('click',async e=>{
+  const b=e.target.closest('[data-buy]');if(!b||b.disabled)return;
+  const it=items.find(x=>x.name===b.dataset.buy);if(!it||state.owned.includes(it.name))return;
+  if(state.cc<it.price){toast('Not enough Crimson Crystals yet. Complete a quest to earn more.');return}
+  b.disabled=true;
+  try{applyProfile(await rpc('buy_item',{p_item:it.name}));renderShop();toast(`${it.name} purchased and equipped!`)}
+  catch{b.disabled=false}
+});
+$('#saveProfile').onclick=async()=>{
+  const patch={display_name:($('#nameInput').value.trim()||'Sooner Adventurer').slice(0,30),major:($('#majorInput').value.trim()||'Undeclared').slice(0,60),gender:$('#genderInput').value,classes:$('#classInput').value.slice(0,200)};
+  const {data,error}=await sb.from('profiles').update(patch).eq('id',userId).select().single();
+  if(error){toast(error.message);return}
+  applyProfile(data);fillProfileForm();toast('Adventurer profile saved.');
+};
+
+// ---------- parties ----------
+async function loadParties(){
+  parties=await query(sb.from('party_list').select('*').order('created_at',{ascending:false}).order('id',{ascending:true}));
+  renderParties();
+}
+function renderParties(){
+  $('#partyCount').textContent=parties.filter(p=>!p.joined&&p.members<p.max_members).length+' parties recruiting';
+  $('#partyGrid').innerHTML=parties.map(p=>{const full=p.members>=p.max_members;return `<div class="tile"><div class="tile-visual">${esc(p.icon)}</div><span class="pill">${esc(p.type)}</span><h3 style="margin-top:10px">${esc(p.name)}</h3><p>${esc(p.description)}</p><div class="tiny muted">📍 ${esc(p.spot)}</div><div class="tiny muted" style="margin:5px 0 12px">◷ ${esc(p.when_text)} · ${p.members}/${p.max_members} members</div><button class="btn ${p.joined?'ghost':'secondary'} small-btn" data-join-party="${p.id}" ${p.joined||full?'disabled':''}>${p.joined?'Joined ✓':full?'Party full':'Join party'}</button></div>`}).join('');
+  const mine=parties.filter(p=>p.joined||p.is_leader);
+  $('#myParties').innerHTML=mine.length?mine.map(p=>`<div class="list-row"><span style="font-size:24px">${esc(p.icon)}</span><div class="grow"><strong>${esc(p.name)}</strong><small>${esc(p.spot)} · ${esc(p.when_text)}</small></div><span class="pill">${p.is_leader?'Party leader':'Member'}</span></div>`).join(''):'<div class="empty">You have not joined a party yet. Pick one above or create your own.</div>';
+  $('#partyStatus').textContent=mine.length?mine[0].name:'Looking for your next party';
+}
+document.addEventListener('click',async e=>{
+  const b=e.target.closest('[data-join-party]');if(!b||b.disabled)return;
+  const p=parties.find(x=>x.id===Number(b.dataset.joinParty));if(!p)return;
+  b.disabled=true;
+  try{const prof=await rpc('join_party',{p_party:p.id});await loadParties();afterReward(prof,`Joined ${p.name}! +15 CC, +20 XP`)}
+  catch{b.disabled=false;loadParties().catch(()=>{})}
+});
+$('#createPartyBtn').onclick=async()=>{
+  const name=prompt('Give your new party a name:');if(!name?.trim())return;
+  const spot=prompt('Where will your party meet?','Bizzell Memorial Library')||'Bizzell Memorial Library';
+  try{await rpc('create_party',{p_name:name.trim(),p_spot:spot.trim()});await loadParties();toast('Party created. You are the party leader.')}catch{}
+};
+
+// ---------- dungeons + focus timer ----------
+function renderDungeons(){$('#dungeonGrid').innerHTML=dungeons.map((d,i)=>`<div class="tile"><div class="tile-visual">${d.icon}</div><span class="pill">${d.type}</span><h3 style="margin-top:10px">${d.name}</h3><p>${d.desc}</p><div class="tiny muted">◷ ${d.hours}</div><div class="tile-bottom" style="margin-top:13px"><span class="price">◆ ${d.cc} · ⚡ ${d.xp}</span><button class="btn secondary small-btn" data-dungeon="${i}">Study here</button></div></div>`).join('')}
+const T={selected:25,remaining:1500,running:false,end:0,id:null,active:false,busy:false};
+let dungeonReward=0;
+function showTimer(){const m=Math.floor(T.remaining/60),s=T.remaining%60;$('#timerDisplay').textContent=String(m).padStart(2,'0')+':'+String(s).padStart(2,'0')}
+function setIdle(status){T.remaining=T.selected*60;showTimer();$('#timerToggle').textContent='▶ Start timer';$('#timerToggle').disabled=false;$('#timerStatus').textContent=status||'Ready when you are'}
+function resetTimer(){
+  clearInterval(T.id);T.running=false;
+  if(T.active){rpc('cancel_session',{},true).catch(()=>{});state.sessionStarted=null;state.sessionMinutes=null}
+  T.active=false;T.busy=false;setIdle();
+}
+function tick(){T.remaining=Math.max(0,Math.ceil((T.end-Date.now())/1000));showTimer();if(T.remaining<=0)finishTimer()}
+function runTimer(){T.running=true;T.end=Date.now()+T.remaining*1000;clearInterval(T.id);T.id=setInterval(tick,500);$('#timerToggle').textContent='Ⅱ Pause timer';$('#timerStatus').textContent='Focus mode active'}
+async function toggleTimer(){
+  if(T.busy)return;
+  if(T.running){clearInterval(T.id);T.running=false;T.remaining=Math.max(0,Math.ceil((T.end-Date.now())/1000));showTimer();$('#timerToggle').textContent='▶ Resume timer';$('#timerStatus').textContent='Paused';return}
+  if(!T.active){
+    T.busy=true;
+    try{await rpc('start_session',{p_minutes:T.selected});T.active=true;state.sessionMinutes=T.selected;T.remaining=T.selected*60;showTimer()}
+    catch{T.busy=false;return}
+    T.busy=false;
+  }
+  runTimer();
+}
+async function finishTimer(attempt=0){
+  clearInterval(T.id);T.running=false;T.busy=true;T.remaining=0;showTimer();
+  $('#timerToggle').disabled=true;$('#timerStatus').textContent='Claiming your reward…';
+  const mins=state.sessionMinutes||T.selected;
+  try{
+    const p=await rpc('complete_session',{},true);
+    const cc=mins,xp=Math.round(mins*1.4);
+    T.active=false;dungeonReward+=cc;$('#dungeonRewards').textContent='+'+dungeonReward;
+    afterReward(p,`Dungeon cleared! +${cc} CC · +${xp} XP · ${mins} minutes studied`);
+    T.busy=false;setIdle('Session complete!');
+  }catch(err){
+    if(/not finished/i.test(err.message)&&attempt<6){setTimeout(()=>finishTimer(attempt+1),2500);return}
+    toast(err.message);T.active=false;T.busy=false;setIdle();
+  }
+}
+function restoreSession(){
+  if(!state.sessionStarted||!state.sessionMinutes)return;
+  const total=state.sessionMinutes*60,elapsed=(Date.now()-new Date(state.sessionStarted).getTime())/1000;
+  if(elapsed>total+3600){rpc('cancel_session',{},true).catch(()=>{});state.sessionStarted=null;state.sessionMinutes=null;return}   // abandoned long ago
+  T.selected=state.sessionMinutes;T.active=true;
+  $$('#durationFilters button').forEach(x=>x.classList.toggle('active',Number(x.dataset.min)===T.selected));
+  T.remaining=Math.max(0,Math.min(total,Math.ceil(total-elapsed)));showTimer();
+  if(T.remaining<=0){finishTimer()}else{runTimer();toast('Welcome back. Your focus session is still running.')}
+}
+$('#timerToggle').onclick=toggleTimer;$('#timerReset').onclick=resetTimer;
+$('#startFocusBtn').onclick=()=>{$('#timerToggle').scrollIntoView({behavior:'smooth',block:'center'});if(!T.running)toggleTimer()};
+$('#durationFilters').onclick=e=>{const b=e.target.closest('[data-min]');if(!b||T.busy)return;T.selected=Number(b.dataset.min);$$('#durationFilters button').forEach(x=>x.classList.toggle('active',x===b));resetTimer()};
+document.addEventListener('click',e=>{const b=e.target.closest('[data-dungeon]');if(!b)return;const d=dungeons[Number(b.dataset.dungeon)];toast(`Dungeon selected: ${d.name}. Start the focus timer when ready.`);$('#timerToggle').scrollIntoView({behavior:'smooth',block:'center'})});
+
+// ---------- clans ----------
+async function loadClans(){
+  clans=await query(sb.from('clan_stats').select('*'));
+  $('#clanCount').textContent=clans.length;
+  renderClans();updateUI();
+}
+function renderClans(){
+  $('#clanGrid').innerHTML=clans.map(c=>{const joined=state.clanId===c.id;return `<div class="tile"><div class="tile-visual">${esc(c.icon)}</div><span class="pill">${esc(c.tag)}</span><h3 style="margin-top:10px">${esc(c.name)}</h3><p>${esc(c.description)}</p><div class="tiny muted">👥 ${c.members} ${c.members===1?'member':'members'} · Level ${c.level}</div><div class="tile-bottom" style="margin:12px 0"><span class="price">◆ ${fmt(c.cc)} CC</span><span class="tiny muted">⚔ ${c.raids} raids</span></div><button class="btn ${joined?'ghost':'secondary'} small-btn" data-clan="${c.id}" ${joined?'disabled':''}>${joined?'Member ✓':'Join clan'}</button></div>`}).join('');
+}
+function renderClanContribution(){
+  const mine=clans.find(c=>c.id===state.clanId);
+  $('#clanContribution').innerHTML=mine?`<div class="list-row"><span style="font-size:30px">${esc(mine.icon)}</span><div class="grow"><strong>${esc(mine.name)}</strong><small>Your contribution since joining</small></div><button class="btn ghost small-btn" data-leave-clan>Leave clan</button></div><div class="stats" style="margin-bottom:0"><div class="stat"><div class="stat-top">CC contributed</div><strong>${fmt(state.clanCC)}</strong></div><div class="stat"><div class="stat-top">XP contributed</div><strong>${fmt(state.clanXP)}</strong></div><div class="stat"><div class="stat-top">Study hours</div><strong>${state.study.toFixed(1)}</strong></div><div class="stat"><div class="stat-top">Raids attended</div><strong>${state.raids}</strong></div></div>`:'<div class="empty">Join a clan to start building your shared legacy.</div>';
+}
+document.addEventListener('click',async e=>{
+  const b=e.target.closest('[data-clan]');if(!b||b.disabled)return;
+  const c=clans.find(x=>x.id===Number(b.dataset.clan));if(!c)return;
+  b.disabled=true;
+  try{applyProfile(await rpc('join_clan',{p_clan:c.id}));await loadClans();toast(`Welcome to ${c.name}! Your future quests will contribute to the clan.`)}
+  catch{b.disabled=false}
+});
+document.addEventListener('click',async e=>{
+  if(!e.target.closest('[data-leave-clan]'))return;
+  if(!confirm('Leave your clan? Your contribution counters reset.'))return;
+  try{applyProfile(await rpc('leave_clan'));await loadClans();toast('You left your clan.')}catch{}
+});
+$('#createClanBtn').onclick=async()=>{
+  const name=prompt('Name your clan or student organization:');if(!name?.trim())return;
+  const tag=prompt('Organization type (club, academic society, Greek life, etc.):','Student organization')||'Student organization';
+  try{applyProfile(await rpc('create_clan',{p_name:name.trim(),p_tag:tag.trim()}));await loadClans();toast('Clan created. You are its founding member.')}catch{}
+};
+
+// ---------- leaderboards (live from the database) ----------
+let boardType='players',boardMetric='level';
+const metricNames={level:'Highest level',cc:'Most Crimson Crystals',raids:'Most raids attended',study:'Most time studying'};
+const boardCols={level:'level',cc:'cc',raids:'raids',study:'study_hours'};
+async function loadPlayers(){
+  const data=await query(sb.from('leaderboard').select('*').order(boardCols[boardMetric],{ascending:false}).order('display_name').limit(50));
+  players=data.map(r=>({name:r.display_name,major:r.major,level:r.level,cc:r.cc,raids:r.raids,study:Number(r.study_hours),me:r.is_me}));
+}
+async function refreshBoard(){if(boardType==='players')await loadPlayers();else await loadClans();renderBoards()}
+function renderBoards(){
+  const isClan=boardType==='clans';
+  const rows=(isClan?clans:players).slice().sort((a,b)=>b[boardMetric]-a[boardMetric]);
+  $('#boardTitle').textContent=isClan?'Top clans':'Top adventurers';
+  $('#boardSub').textContent=`Ranked by ${metricNames[boardMetric].toLowerCase()}`;
+  const col1=isClan?'Organization':'Adventurer';
+  const valLabel={level:'Level',cc:'Crimson Crystals',raids:'Raids',study:'Study hours'}[boardMetric];
+  const col4={level:isClan?'Members':'Major',cc:'Level',raids:'Study hrs',study:'Raids'}[boardMetric];
+  const head=`<div class="leader-row head"><div>Rank</div><div>${col1}</div><div style="text-align:right">${valLabel}</div><div style="text-align:right">${col4}</div></div>`;
+  const body=rows.map((r,i)=>{
+    let v=r[boardMetric];
+    if(boardMetric==='study')v=Number(v).toFixed(1)+'h';else if(boardMetric==='level')v='Lv. '+v;else v=fmt(v);
+    const other={level:isClan?r.members+' members':r.major,cc:'Lv. '+r.level,raids:Number(r.study).toFixed(1)+'h',study:fmt(r.raids)+' raids'}[boardMetric];
+    const sub=isClan?r.tag:(r.me?'Your profile':r.major);
+    return `<div class="leader-row ${r.me?'me':''}"><div class="rank">${i<3?['🥇','🥈','🥉'][i]:i+1}</div><div class="leader-name">${isClan?esc(r.icon)+' ':''}${esc(r.name)}<small>${esc(sub)}</small></div><div class="leader-val">${esc(v)}</div><div class="leader-val">${esc(other)}</div></div>`;
+  }).join('');
+  $('#leaderTable').innerHTML=head+(body||'<div class="empty">Nobody here yet. Be the first!</div>');
+}
+$('#boardType').onclick=e=>{
+  const b=e.target.closest('[data-type]');if(!b)return;boardType=b.dataset.type;
+  $$('#boardType button').forEach(x=>x.classList.toggle('active',x===b));
+  $$('#boardMetric button').forEach(x=>{x.style.display=boardType==='clans'&&x.dataset.metric==='level'?'none':''});
+  if(boardType==='clans'&&boardMetric==='level')boardMetric='cc';
+  $$('#boardMetric button').forEach(x=>x.classList.toggle('active',x.dataset.metric===boardMetric));
+  refreshBoard().catch(err=>toast(err.message));
+};
+$('#boardMetric').onclick=e=>{
+  const b=e.target.closest('[data-metric]');if(!b||b.style.display==='none')return;boardMetric=b.dataset.metric;
+  $$('#boardMetric button').forEach(x=>x.classList.toggle('active',x===b));
+  refreshBoard().catch(err=>toast(err.message));
+};
+setInterval(()=>{if(userId&&currentView==='leaderboards'&&!document.hidden)refreshBoard().catch(()=>{})},10000);
+
+// ---------- accounts ----------
+let authMode='signup';
+function authMsg(text,kind){const m=$('#authMsg');m.textContent=text||'';m.className='auth-msg '+(kind||'')}
+function setMode(m){
+  authMode=m;
+  $$('.auth-tabs button').forEach(b=>b.classList.toggle('active',b.dataset.mode===m));
+  $('#nameField').hidden=m!=='signup';
+  $('#authSubmit').textContent=m==='signup'?'Create account':'Sign in';
+  $('#password').autocomplete=m==='signup'?'new-password':'current-password';
+  authMsg('');
+}
+$('.auth-tabs').onclick=e=>{const b=e.target.closest('button[data-mode]');if(b)setMode(b.dataset.mode)};
+function showAuth(){document.body.classList.add('locked');$('#authScreen').hidden=false}
+
+$('#authForm').onsubmit=async e=>{
+  e.preventDefault();if(!sb)return;
+  const email=$('#email').value.trim(),password=$('#password').value,btn=$('#authSubmit');
+  btn.disabled=true;authMsg('Working…');
+  try{
+    if(authMode==='signup'){
+      const name=($('#signupName').value.trim()||'Sooner Adventurer').slice(0,30);
+      const {data,error}=await sb.auth.signUp({email,password,options:{data:{display_name:name}}});
+      if(error)throw error;
+      if(!data.session){setMode('signin');authMsg('Account created. Check your email to confirm it, then sign in.','ok');return}
+    }else{
+      const {error}=await sb.auth.signInWithPassword({email,password});
+      if(error)throw error;
+    }
+    await enterApp();
+  }catch(err){authMsg(err.message,'error')}
+  finally{btn.disabled=false}
+};
+$('#signOutBtn').onclick=async()=>{if(sb)await sb.auth.signOut();location.reload()};
+
+// ---------- start-up ----------
+async function loadCatalog(){
+  const [ev,it]=await Promise.all([query(sb.from('events').select('*').order('id')),query(sb.from('items').select('*').order('sort_order'))]);
+  events=ev.map(r=>({id:r.id,title:r.title,category:r.category,date:r.month,day:r.day,time:r.time_text,place:r.place,reward:r.reward,xp:r.xp,desc:r.description}));
+  items=it.map(r=>({name:r.name,cat:r.cat,icon:r.icon,price:r.price,desc:r.description}));
+}
+async function loadProfile(){
+  let p=await query(sb.from('profiles').select('*').eq('id',userId).maybeSingle());
+  if(!p)p=await rpc('ensure_profile',{},true);
+  applyProfile(p);fillProfileForm();
+}
+async function loadRaidJoins(){state.joinedRaids=(await query(sb.from('raid_joins').select('event_id'))).map(r=>r.event_id)}
+
+async function enterApp(){
+  const {data:{session}}=await sb.auth.getSession();
+  if(!session)throw new Error('Could not start your session. Please sign in again.');
+  userId=session.user.id;
+  try{
+    await Promise.all([loadCatalog(),loadProfile(),loadRaidJoins(),loadParties(),loadClans(),loadPlayers()]);
+  }catch(err){
+    userId=null;
+    throw new Error(`Could not load your data (${err.message}). Did you run supabase_setup.sql?`);
+  }
+  $('#authScreen').hidden=true;document.body.classList.remove('locked');
+  renderEvents();renderShop();renderDungeons();renderParties();renderClans();updateUI();renderBoards();
+  restoreSession();
+}
+
+(async function boot(){
+  renderDungeons();setMode('signup');
+  if(!sb){
+    showAuth();$('#authSubmit').disabled=true;
+    const w=$('#setupWarn');w.hidden=false;
+    w.textContent=!configured?'Backend not connected yet. Open index.html and set SUPABASE_URL and SUPABASE_ANON_KEY at the top of the script (see SETUP.md).':'Could not load the Supabase library. Check your internet connection and reload.';
+    return;
+  }
+  try{
+    const {data:{session}}=await sb.auth.getSession();
+    if(session){await enterApp()}else{showAuth()}
+  }catch(err){showAuth();authMsg(err.message,'error')}
+})();
+</script>
+</body></html>

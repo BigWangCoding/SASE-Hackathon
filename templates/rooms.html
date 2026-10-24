@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% from "_macros.html" import room_card %}
+{% block title %}Find rooms{% endblock %}
+{% block content %}
+<div class="page-head">
+  <h1>Open study rooms</h1>
+  <a class="btn" href="{{ url_for('new_room') }}">+ Post a room</a>
+</div>
+
+<form class="search" method="get">
+  <input name="q" value="{{ q }}" placeholder="Search by class, topic, or building, e.g. CHEM, CS 2413, Bizzell">
+  <button class="btn" type="submit">Search</button>
+  {% if q %}<a href="{{ url_for('rooms') }}">Clear</a>{% endif %}
+</form>
+
+{% if rooms %}
+  <div class="grid">
+    {% for r in rooms %}{{ room_card(r, joined=r.id in my_room_ids) }}{% endfor %}
+  </div>
+{% else %}
+  <div class="empty">
+    No open rooms{% if q %} matching "{{ q }}"{% endif %}.
+    <a href="{{ url_for('new_room') }}">Post one</a> and classmates can join you.
+  </div>
+{% endif %}
+{% endblock %}

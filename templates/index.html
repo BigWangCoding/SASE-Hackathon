@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% block title %}Welcome{% endblock %}
+{% block content %}
+<section class="hero">
+  <h1>Don't study alone.</h1>
+  <p>
+    See where OU students are studying your classes right now, down to the building and room.
+    Walk over and join them, or post your own spot so classmates can find you.
+  </p>
+  <div class="actions">
+    <a class="btn" href="{{ url_for('signup') }}">Create your profile</a>
+    <a class="btn btn-ghost" href="{{ url_for('login') }}">Log in</a>
+  </div>
+  <p class="muted">{{ open_count }} study room{{ '' if open_count == 1 else 's' }} open right now.</p>
+</section>
+
+<section class="steps">
+  <div class="card">
+    <h3>1. Make a profile</h3>
+    <p>Add your major, year, and the classes you're taking this semester.</p>
+  </div>
+  <div class="card">
+    <h3>2. Find a room</h3>
+    <p>Browse open study rooms by class, with the building and room number.</p>
+  </div>
+  <div class="card">
+    <h3>3. Or post your own</h3>
+    <p>Already studying? Post where you are and we'll match you with classmates.</p>
+  </div>
+</section>
+{% endblock %}

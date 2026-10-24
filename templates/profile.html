@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+{% block title %}Profile{% endblock %}
+{% block content %}
+<div class="card form-card">
+  <h1>Your profile</h1>
+  <p class="muted">{{ g.user.email }}</p>
+  <form method="post">
+    {% include "_profile_fields.html" %}
+    <button class="btn" type="submit">Save</button>
+  </form>
+</div>
+{% endblock %}

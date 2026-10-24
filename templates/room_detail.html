@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% block title %}{{ room.course }} in {{ room.building }}{% endblock %}
+{% block content %}
+<p><a href="{{ url_for('rooms') }}">&larr; All rooms</a></p>
+
+<div class="card">
+  <span class="course">{{ room.course }}</span>
+  <h1>{{ room.building }} · {{ room.room_number }}</h1>
+  {% if room.topic %}<p class="lead">{{ room.topic }}</p>{% endif %}
+
+  {% if active %}
+    <p>
+      {{ room.member_count }}/{{ room.capacity }} studying · open until {{ room.ends_at | clock }}
+      ({{ room.ends_at | time_left }})
+    </p>
+    {% if is_host %}
+      <form class="inline" method="post" action="{{ url_for('end_room', room_id=room.id) }}">
+        <button class="btn btn-ghost" type="submit">End session</button>
+      </form>
+    {% elif is_member %}
+      <form class="inline" method="post" action="{{ url_for('leave_room', room_id=room.id) }}">
+        <button class="btn btn-ghost" type="submit">Leave room</button>
+      </form>
+    {% elif room.member_count < room.capacity %}
+      <form class="inline" method="post" action="{{ url_for('join_room', room_id=room.id) }}">
+        <button class="btn" type="submit">Join this room</button>
+      </form>
+    {% else %}
+      <p class="muted">This room is full.</p>
+    {% endif %}
+  {% else %}
+    <p class="muted">This session has ended.</p>
+  {% endif %}
+
+  <h2>Who's here</h2>
+  <ul class="members">
+    {% for m in members %}
+      <li>
+        <strong>{{ m.name }}</strong>
+        <span class="muted">{{ m.major }} · {{ m.year }}</span>
+        {% if m.id == room.host_id %}<span class="badge">Host</span>{% endif %}
+      </li>
+    {% endfor %}
+  </ul>
+</div>
+{% endblock %}

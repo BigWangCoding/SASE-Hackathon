@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+{% from "_macros.html" import room_card, course_chips %}
+{% block title %}Dashboard{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>Hey, {{ g.user.name.split()[0] }}</h1>
+    <p class="muted">{{ g.user.major }} · {{ g.user.year }}</p>
+    {{ course_chips(g.user.courses | courses) }}
+  </div>
+  <a class="btn" href="{{ url_for('new_room') }}">+ Post where you're studying</a>
+</div>
+
+{% if my_rooms %}
+  <h2>You're studying in</h2>
+  <div class="grid">
+    {% for r in my_rooms %}{{ room_card(r, joined=True) }}{% endfor %}
+  </div>
+{% endif %}
+
+<h2>Open rooms for your classes</h2>
+{% if suggested %}
+  <div class="grid">
+    {% for r in suggested %}{{ room_card(r) }}{% endfor %}
+  </div>
+{% else %}
+  <div class="empty">
+    Nobody's studying your classes right now.
+    <a href="{{ url_for('new_room') }}">Post a room</a> and be the first, or
+    <a href="{{ url_for('rooms') }}">browse all rooms</a>.
+  </div>
+{% endif %}
+
+<h2>Students like you</h2>
+{% if matches %}
+  <div class="grid">
+    {% for m in matches %}
+      <div class="card">
+        <h3>{{ m.user.name }}</h3>
+        <p class="muted">{{ m.user.major }} · {{ m.user.year }}{% if m.same_major %} · same major{% endif %}</p>
+        {% if m.shared %}
+          <p>Shared classes:</p>
+          {{ course_chips(m.shared) }}
+        {% endif %}
+        {% if m.other_depts %}
+          <p class="muted">Also taking {{ m.other_depts | join(', ') }} classes</p>
+        {% endif %}
+        {% set room = studying_now.get(m.user.id) %}
+        {% if room %}
+          <p class="live">
+            Studying {{ room.course }} now in
+            <a href="{{ url_for('room_detail', room_id=room.id) }}">{{ room.building }}, {{ room.room_number }}</a>
+          </p>
+        {% endif %}
+        <p><a href="mailto:{{ m.user.email }}">{{ m.user.email }}</a></p>
+      </div>
+    {% endfor %}
+  </div>
+{% else %}
+  <div class="empty">No matches yet. As more students sign up, classmates will show up here.</div>
+{% endif %}
+{% endblock %}

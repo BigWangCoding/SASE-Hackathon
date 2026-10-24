@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% block title %}Post a room{% endblock %}
+{% block content %}
+<div class="card form-card">
+  <h1>Post a study room</h1>
+  <p class="muted">Already studying somewhere? Tell classmates where to find you.</p>
+  <form method="post">
+    <label>Class
+      <input name="course" list="my-courses" value="{{ form.get('course', '') }}" placeholder="CHEM 1315" required>
+      <datalist id="my-courses">
+        {% for c in g.user.courses | courses %}<option value="{{ c }}">{% endfor %}
+      </datalist>
+    </label>
+    <label>What are you working on? <small>Optional</small>
+      <input name="topic" value="{{ form.get('topic', '') }}" placeholder="Exam 2 review, homework 5, lab report...">
+    </label>
+    <div class="row">
+      <label>Building
+        <input name="building" list="buildings" value="{{ form.get('building', '') }}" placeholder="Bizzell Memorial Library" required>
+        <datalist id="buildings">
+          {% for b in buildings %}<option value="{{ b }}">{% endfor %}
+        </datalist>
+      </label>
+      <label>Room or spot
+        <input name="room_number" value="{{ form.get('room_number', '') }}" placeholder="Room 230, or 3rd floor east" required>
+      </label>
+    </div>
+    <div class="row">
+      <label>Studying for
+        <select name="hours">
+          {% for h in durations %}
+            <option value="{{ h }}" {% if form.get('hours', '2') == h | string %}selected{% endif %}>
+              {{ h }} hour{{ 's' if h > 1 }}
+            </option>
+          {% endfor %}
+        </select>
+      </label>
+      <label>Max people
+        <input type="number" name="capacity" min="2" max="30" value="{{ form.get('capacity', 6) }}" required>
+      </label>
+    </div>
+    <button class="btn" type="submit">Post room</button>
+  </form>
+</div>
+{% endblock %}

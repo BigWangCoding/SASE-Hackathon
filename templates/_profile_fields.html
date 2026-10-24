@@ -1,0 +1,19 @@
+<label>Name
+  <input name="name" value="{{ form.get('name', '') }}" required>
+</label>
+<div class="row">
+  <label>Major
+    <input name="major" value="{{ form.get('major', '') }}" placeholder="e.g. Chemistry" required>
+  </label>
+  <label>Year
+    <select name="year" required>
+      {% for y in years %}
+        <option {% if form.get('year') == y %}selected{% endif %}>{{ y }}</option>
+      {% endfor %}
+    </select>
+  </label>
+</div>
+<label>Classes this semester
+  <input name="courses" value="{{ form.get('courses', '') }}" placeholder="CHEM 1315, MATH 1914, ENGL 1113" required>
+  <small>Separate with commas. We use these to match you with classmates and rooms.</small>
+</label>

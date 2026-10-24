@@ -1,0 +1,21 @@
+{% macro course_chips(courses) %}
+  <ul class="chips">
+    {% for c in courses %}<li>{{ c }}</li>{% endfor %}
+  </ul>
+{% endmacro %}
+
+{% macro room_card(room, joined=False) %}
+  <a class="card room" href="{{ url_for('room_detail', room_id=room.id) }}">
+    <div class="room-top">
+      <span class="course">{{ room.course }}</span>
+      {% if joined %}<span class="badge">You're here</span>{% endif %}
+    </div>
+    <h3>{{ room.building }} · {{ room.room_number }}</h3>
+    {% if room.topic %}<p>{{ room.topic }}</p>{% endif %}
+    <p class="muted">
+      {{ room.member_count }}/{{ room.capacity }} studying · until {{ room.ends_at | clock }}
+      ({{ room.ends_at | time_left }})
+    </p>
+    <p class="muted">Hosted by {{ room.host_name }}</p>
+  </a>
+{% endmacro %}

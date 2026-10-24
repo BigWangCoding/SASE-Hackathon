@@ -1,19 +1,39 @@
 # Sooner Buddies
 
 A campus RPG for University of Oklahoma students that turns studying together into a game.
-Students form **parties** (study groups), meet up in **study dungeons** (real study spots on
-campus), and earn **Crimson Crystals (CC)** and **XP** for every minute they study.
+Students form **parties** (study groups), clear **dungeon rooms** (real study spots on campus),
+go on **raids** (OU games and events), and earn **Crimson Crystals (CC)** and **XP** as loot.
+
+| Game term | What it means |
+| --- | --- |
+| Dungeon room | A study spot on campus (Bizzell, the Union, computer labs...) |
+| Dungeon run | A study session; clearing it pays out loot |
+| Party | A study group |
+| Raid / raid party | An OU athletics event / a group going to it (or a watch party) |
+| Clan | A club, fraternity, sorority, or other org |
+| Loot | CC and XP rewards |
 
 ## Features
 
-- **Character profile:** name, gender, major, year, classes, CC, and XP/level.
+- **Character profile:** name, role (student, professor, faculty, staff), gender, major, year,
+  classes, CC, and XP/level.
+- **Titles:** wear a title in front of your name everywhere it appears, like chat, parties, and
+  leaderboards. The choices are your year (students), Prof./Faculty/Staff, or the name of any clan
+  you're in.
+- **Chat:** a Global room, a private room for each clan you're in, a room for each class on your
+  profile, and direct messages with friends. New messages show up every few seconds.
+- **Pet summons:** spend 100 CC to summon an Oklahoma animal (state animal, bird, reptile,
+  insect, and more). Your active pet boosts CC or XP from dungeon runs and raids:
+  Common +3% (60%), Rare +6% (28%), Epic +10% (10%), Legendary +20% (2%). The legendaries are
+  **Boomer** and **Sooner**, the Sooner Schooner ponies. A Legendary is guaranteed within 50
+  summons, and duplicates refund 25 CC. The catalog is in `pets.py`.
 - **Avatar forge & shop:** spend CC on hair, hats, eyewear, shirts, pants, shoes, and
   accessories. Every item is drawn onto your avatar, and the shop previews each item on you
   before you buy it.
 - **Parties:** create or join a study party for a class at a dungeon, now or later. Classmates
   in the same class (or department) see your party first.
-- **Study dungeons:** Bizzell, the Union, computer labs, and more. Start a session ("fight")
-  solo or with your party, then hit *Finish* to claim rewards:
+- **Dungeon rooms:** Bizzell, the Union, computer labs, and more. Start a dungeon run solo or
+  with your party, then clear it to collect loot:
   - 1 CC + 2 XP per minute, capped at 4 hours per session
   - +50% when studying with a party of 2+
 - **Stats:** level, CC, time studying, raids attended, friends, clans, and recent dungeon runs.
@@ -66,6 +86,7 @@ session timer.
 | --- | --- |
 | `app.py` | Routes and game rules: rewards, levels, parties, dungeons, clans, friends, leaderboards |
 | `avatar.py` | Avatar shop items and the SVG avatar renderer |
+| `pets.py` | Pet catalog, summon odds, and boosts |
 | `raids.py` | Pulls events from the SoonerSports.com calendar feed (`python raids.py` syncs by hand) |
 | `schema.sql` | Database tables, created automatically on startup |
 | `seed.py` | Demo data for presentations |
@@ -88,3 +109,5 @@ file to update.
 - Verify study sessions (e.g. location check-in) so rewards can't be faked
 - Email verification for `@ou.edu` accounts
 - CSRF tokens and a real `SECRET_KEY` before deploying publicly
+- Verify professor/faculty/staff roles (right now anyone can pick one, and with it the "Prof." title)
+- Chat moderation (reporting, muting) and WebSockets if polling every 3 seconds gets heavy

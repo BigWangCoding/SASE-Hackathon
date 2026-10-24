@@ -1,3 +1,14 @@
+{% macro figure(user, size) %}
+  {% set pet = pet_of(user) %}
+  <div class="figure">
+    {{ avatar_svg(user, size) }}
+    {% if pet %}
+      <span class="figure-pet" title="{{ pet.name }}: {{ pet.rarity }}, +{{ pet.percent }}% {{ pet.boosts | upper }}">{{ pet.emoji }}</span>
+      <span class="caption">{{ pet.name }} · +{{ pet.percent }}% {{ pet.boosts | upper }}</span>
+    {% endif %}
+  </div>
+{% endmacro %}
+
 {% macro course_tags(courses) %}
   <ul class="tags">{% for c in courses %}<li>{{ c }}</li>{% endfor %}</ul>
 {% endmacro %}
@@ -22,7 +33,7 @@
   <div class="row">
     <a href="{{ url_for('player', user_id=u.id) }}">{{ avatar_svg(u, 40, bust=True) }}</a>
     <div class="grow">
-      <a href="{{ url_for('player', user_id=u.id) }}"><strong>{{ u.name }}</strong></a>
+      <a href="{{ url_for('player', user_id=u.id) }}"><strong>{{ display_name(u) }}</strong></a>
       <span class="caption">{{ note or (u.major ~ " · level " ~ level_info(u.xp).level) }}</span>
       {% if studying %}<span class="caption live">Studying now</span>{% endif %}
     </div>

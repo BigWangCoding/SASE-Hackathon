@@ -1,0 +1,91 @@
+{% extends "base.html" %}
+{% block title %}Pet summons{% endblock %}
+{% block content %}
+{% set active = pet_of(g.user) %}
+<div class="page-head">
+  <div>
+    <h1>Pet summons</h1>
+    <p class="caption">
+      Spend {{ cost }} CC to summon an Oklahoma animal. Your active pet boosts the CC or XP you earn from
+      dungeon runs and raids.
+    </p>
+  </div>
+</div>
+<nav class="tabs">
+  <a href="{{ url_for('avatar_page') }}">Avatar items</a>
+  <a href="{{ url_for('pet_page') }}" class="active">Pet summons</a>
+</nav>
+
+<div class="split">
+  <section>
+    {% if last %}
+      {% set pet = pets[last.pet] %}
+      <div class="summon-result rarity-{{ pet.rarity | lower }}">
+        <span class="pet-emoji big">{{ pet.emoji }}</span>
+        <div>
+          <p class="caption">{{ "New pet!" if last.new else "Duplicate: +" ~ refund ~ " CC back" }}</p>
+          <h2>{{ pet.name }}</h2>
+          <p><span class="rarity">{{ pet.rarity }}</span> · +{{ pet.percent }}% {{ pet.boosts | upper }}</p>
+          <p class="caption">{{ pet.about }}</p>
+        </div>
+      </div>
+    {% endif %}
+
+    <h2>Summon</h2>
+    <form method="post" action="{{ url_for('summon_pet') }}" class="inline-form">
+      <button class="btn" type="submit" {% if g.user.cc < cost %}disabled{% endif %}>Summon for {{ cost }} CC</button>
+      <span class="caption">You have {{ g.user.cc | num }} CC.</span>
+    </form>
+    <p class="caption">
+      Legendary guaranteed within {{ pity_left }} more summon{{ '' if pity_left == 1 else 's' }}.
+      Duplicates give {{ refund }} CC back.
+    </p>
+
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Rarity</th><th class="num">Chance</th><th class="num">Boost</th></tr></thead>
+        <tbody>
+          {% for rarity, odds in rarities.items() %}
+            <tr><td class="rarity rarity-{{ rarity | lower }}">{{ rarity }}</td><td class="num">{{ odds[0] }}%</td><td class="num">+{{ odds[1] }}%</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    <h2>Active pet</h2>
+    {% if active %}
+      <div class="row">
+        <span class="pet-emoji">{{ active.emoji }}</span>
+        <span class="grow"><strong>{{ active.name }}</strong><span class="caption">{{ active.rarity }} · +{{ active.percent }}% {{ active.boosts | upper }} on every dungeon run and raid</span></span>
+      </div>
+    {% else %}
+      <p class="empty">No pet yet. Your first summon becomes your active pet.</p>
+    {% endif %}
+  </section>
+
+  <section>
+    <h2>Collection ({{ owned | length }} of {{ pets | length }})</h2>
+    <div class="rows">
+      {% for pet_id, pet in pets.items() %}
+        <div class="row{% if pet_id not in owned %} locked{% endif %}">
+          <span class="pet-emoji">{{ pet.emoji if pet_id in owned else "?" }}</span>
+          <span class="grow">
+            <strong>{{ pet.name }}</strong>
+            <span class="caption"><span class="rarity rarity-{{ pet.rarity | lower }}">{{ pet.rarity }}</span> · +{{ pet.percent }}% {{ pet.boosts | upper }}</span>
+          </span>
+          {% if pet_id in owned %}
+            {% if g.user.active_pet == pet_id %}
+              <span class="caption">Active</span>
+            {% else %}
+              <form method="post" action="{{ url_for('activate_pet', pet_id=pet_id) }}">
+                {{ next_field() }}
+                <button class="btn quiet small" type="submit">Make active</button>
+              </form>
+            {% endif %}
+          {% endif %}
+        </div>
+      {% endfor %}
+    </div>
+  </section>
+</div>
+{% endblock %}

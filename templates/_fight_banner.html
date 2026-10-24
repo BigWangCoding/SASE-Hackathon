@@ -1,16 +1,18 @@
+{% set pet = pet_of(g.user) %}
 <div class="session-bar">
   <div class="bar">
     <span class="timer" data-elapsed="{{ elapsed_seconds(g.fight.started_at) }}" data-scale="{{ time_scale }}">0:00</span>
     <span>
-      Studying at <strong>{{ place(g.fight.dungeon).name }}</strong>
+      Dungeon run in <strong>{{ place(g.fight.dungeon).name }}</strong>
       <span class="caption">
-        · {% if g.fight.party_id %}with your party (+{{ rewards.bonus }}% if 2+ members){% else %}solo{% endif %}
+        · {% if g.fight.party_id %}party run (+{{ rewards.bonus }}% with 2+ members){% else %}solo run{% endif %}
+        {% if pet %}· {{ pet.emoji }} {{ pet.name }} +{{ pet.percent }}% {{ pet.boosts | upper }}{% endif %}
         · {{ rewards.cc }} CC and {{ rewards.xp }} XP per minute
       </span>
     </span>
     <form method="post" action="{{ url_for('finish_fight') }}">
       {{ next_field() }}
-      <button class="btn" type="submit">Finish and collect</button>
+      <button class="btn" type="submit">Clear dungeon and collect loot</button>
     </form>
   </div>
 </div>

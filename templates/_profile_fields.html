@@ -1,6 +1,11 @@
 <label class="field"><span>Name</span>
   <input name="name" maxlength="40" value="{{ form.get('name', '') }}" required>
 </label>
+<label class="field"><span>I'm a</span>
+  <select name="role">
+    {% for r in roles %}<option {% if form.get('role', 'Student') == r %}selected{% endif %}>{{ r }}</option>{% endfor %}
+  </select>
+</label>
 <div class="form-row">
   <label class="field"><span>Gender</span>
     <select name="gender">

@@ -16,7 +16,7 @@
           {% for c in g.user.courses | courses %}<option value="{{ c }}">{% endfor %}
         </datalist>
       </label>
-      <label class="field"><span>Where</span>
+      <label class="field"><span>Dungeon room</span>
         <select name="dungeon">
           {% for key, d in dungeons.items() %}
             <option value="{{ key }}" {% if form.get('dungeon') == key %}selected{% endif %}>{{ d.name }}</option>

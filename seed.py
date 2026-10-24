@@ -12,7 +12,7 @@ from werkzeug.security import generate_password_hash
 
 import avatar
 import raids as raid_feed
-from app import app, get_db, stamp
+from app import app, get_db, set_title, stamp
 
 PASSWORD = "password123"
 
@@ -53,6 +53,51 @@ STUDENTS = [
     ("Casey Nguyen", "casey@ou.edu", "Female", "Psychology", "Sophomore",
      "PSY 1113, BIOL 1124, ENGL 1213", 1, (3300, 380, 1650, 1500, 9),
      ["hat_beanie", "pants_shorts", "acc_book"]),
+    ("Rebecca Hale", "hale@ou.edu", "Female", "Chemistry", "Graduate",
+     "CHEM 1315", 2, (2400, 300, 600, 300, 2), ["glasses_round", "shirt_labcoat"]),
+]
+
+# Non-students. Everyone else is a Student.
+ROLES = {"hale": "Professor"}
+
+# Title each player wears: "year", "role", or the name of one of their clans.
+TITLES = {
+    "demo": "year", "ava": "year", "taylor": "year", "casey": "year", "hale": "role",
+    "maya": "Crimson Chemistry Club", "jordan": "Code Crusaders", "liam": "Sigma Scholars",
+    "olivia": "Pre-Health Society", "riley": "Sooner Engineers Guild",
+}
+
+# Pets each player has summoned. The first one is their active pet.
+PET_COLLECTIONS = {
+    "olivia": ["boomer", "bison", "bullfrog", "honeybee"],
+    "riley": ["sooner", "collared_lizard", "raccoon"],
+    "jordan": ["flycatcher", "honeybee", "raccoon"],
+    "maya": ["swallowtail", "cottontail"],
+    "liam": ["wild_turkey", "skunk"],
+    "ava": ["box_turtle"],
+    "noah": ["raccoon"],
+}
+
+# Chat history: (room, sender, message, minutes ago). Rooms are "global", "clan:<clan name>",
+# "class:<course>", or "dm:<one handle>:<other handle>".
+MESSAGES = [
+    ("global", "jordan", "Anyone else in the Gallogly labs tonight? Late-Night Code Guild has room.", 95),
+    ("global", "olivia", "Boomer finally showed up in pet summons. 47 rolls. Worth it.", 70),
+    ("global", "liam", "Union watch party for the Mississippi State game, 2nd floor TVs. Bring snacks.", 50),
+    ("global", "casey", "Is Bizzell's 3rd floor quiet today?", 30),
+    ("global", "maya", "Yes, the east side is pretty empty right now.", 28),
+    ("global", "taylor", "Price Hall lounge has open tables too if anyone needs a dungeon room.", 12),
+    ("class:CHEM 1315", "hale", "Reminder: Homework 6 is due Friday at 11:59 PM. Office hours moved to Thursday 2-4 in PSC 201.", 180),
+    ("class:CHEM 1315", "ava", "Gen Chem Grind is in PSC 201 right now if anyone's stuck on stoichiometry.", 25),
+    ("class:CHEM 1315", "emma", "On my way!", 22),
+    ("class:CS 2413", "jordan", "Project 3's linked list tests are brutal. We're in the Gallogly 2nd floor lab.", 40),
+    ("class:CS 2413", "noah", "The remove() edge case got me too. Coming over.", 35),
+    ("clan:Crimson Chemistry Club", "maya", "Clan goal this week: 50 hours in dungeons. We're at 31.", 120),
+    ("clan:Crimson Chemistry Club", "sam", "I'll do a long run in Bizzell tonight.", 100),
+    ("clan:Code Crusaders", "riley", "Hackathon this weekend. Who's in?", 200),
+    ("clan:Code Crusaders", "noah", "Me! Can we build something with the raid calendar?", 190),
+    ("dm:ava:demo", "ava", "Are you coming to Gen Chem Grind? We're in PSC 201.", 24),
+    ("dm:maya:demo", "maya", "Want to split orgo flashcards next semester?", 300),
 ]
 
 # (user, friend) pairs. Both directions = friends; one direction = a pending request.
@@ -130,7 +175,8 @@ with app.app_context():
     db.executescript(
         "DELETE FROM study_sessions; DELETE FROM party_members; DELETE FROM parties;"
         "DELETE FROM clan_members; DELETE FROM clans; DELETE FROM friendships;"
-        "DELETE FROM inventory; DELETE FROM raid_checkins; DELETE FROM users;"
+        "DELETE FROM inventory; DELETE FROM raid_checkins; DELETE FROM user_pets; DELETE FROM messages;"
+        "DELETE FROM users;"
     )
     right_now = datetime.now().replace(second=0, microsecond=0)
     password_hash = generate_password_hash(PASSWORD)
@@ -162,6 +208,32 @@ with app.app_context():
         db.executemany(
             "INSERT INTO clan_members (clan_id, user_id, joined_at) VALUES (?, ?, ?)",
             [(cur.lastrowid, ids[m], stamp(right_now - timedelta(days=30))) for m in members],
+        )
+
+    clan_ids = {row["name"]: row["id"] for row in db.execute("SELECT id, name FROM clans")}
+    for who, role in ROLES.items():
+        db.execute("UPDATE users SET role = ? WHERE id = ?", (role, ids[who]))
+    for who, title in TITLES.items():
+        kind = title if title in ("year", "role") else f"clan:{clan_ids[title]}"
+        set_title(ids[who], kind)
+    for who, collection in PET_COLLECTIONS.items():
+        db.executemany(
+            "INSERT INTO user_pets (user_id, pet_id, obtained_at) VALUES (?, ?, ?)",
+            [(ids[who], pet_id, stamp(right_now - timedelta(days=7))) for pet_id in collection],
+        )
+        db.execute("UPDATE users SET active_pet = ? WHERE id = ?", (collection[0], ids[who]))
+    for room, sender, body, minutes_ago in MESSAGES:
+        kind, _, target = room.partition(":")
+        if kind == "clan":
+            channel = f"clan:{clan_ids[target]}"
+        elif kind == "dm":
+            low, high = sorted(ids[h] for h in target.split(":"))
+            channel = f"dm:{low}:{high}"
+        else:
+            channel = room
+        db.execute(
+            "INSERT INTO messages (channel, user_id, body, sent_at) VALUES (?, ?, ?, ?)",
+            (channel, ids[sender], body, stamp(datetime.now() - timedelta(minutes=minutes_ago))),
         )
 
     party_ids = []

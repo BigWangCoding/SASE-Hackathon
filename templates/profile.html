@@ -6,6 +6,17 @@
   <p class="caption">{{ g.user.email }}</p>
   <form method="post">
     {% include "_profile_fields.html" %}
+    <label class="field"><span>Title</span>
+      <select name="title">
+        <option value="">No title</option>
+        {% for kind, text in titles %}
+          <option value="{{ kind }}" {% if form.get('title_kind', form.get('title')) == kind %}selected{% endif %}>
+            {{ text }}{% if kind.startswith('clan:') %} (clan){% endif %}
+          </option>
+        {% endfor %}
+      </select>
+      <small>Shown in front of your name in chat, parties, and leaderboards. Join a clan to wear its name.</small>
+    </label>
     <div class="actions">
       <button class="btn" type="submit">Save</button>
       <a href="{{ url_for('player', user_id=g.user.id) }}">Cancel</a>

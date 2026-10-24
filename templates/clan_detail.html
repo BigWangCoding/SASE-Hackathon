@@ -8,8 +8,8 @@
     <p class="caption">{{ clan.kind }}{% if clan.founder_name %} · founded by {{ clan.founder_name }}{% endif %}</p>
   </div>
   {% if is_member %}
-    <form method="post" action="{{ url_for('leave_clan', clan_id=clan.id) }}">
-      <span class="caption">You're a member</span>
+    <form method="post" action="{{ url_for('leave_clan', clan_id=clan.id) }}" class="inline-form">
+      <a class="btn" href="{{ url_for('chat', room='clan:' ~ clan.id) }}">Clan chat</a>
       <button class="btn quiet small" type="submit">Leave</button>
     </form>
   {% else %}
@@ -37,7 +37,7 @@
     <tbody>
       {% for m in members %}
         <tr{% if m.id == g.user.id %} class="me"{% endif %}>
-          <td><a class="who" href="{{ url_for('player', user_id=m.id) }}">{{ avatar_svg(m, 32, bust=True) }}{{ m.name }}</a></td>
+          <td><a class="who" href="{{ url_for('player', user_id=m.id) }}">{{ avatar_svg(m, 32, bust=True) }}{{ display_name(m) }}</a></td>
           <td class="num">{{ level_info(m.xp).level }}</td>
           <td class="num">{{ m.xp | num }}</td>
           <td class="num">{{ ((100 * m.xp / clan.xp) | round | int) if clan.xp else 0 }}%</td>

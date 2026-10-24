@@ -12,6 +12,7 @@ from markupsafe import Markup, escape
 from werkzeug.security import check_password_hash, generate_password_hash
 
 import avatar
+import pets
 import raids as raid_feed
 
 app = Flask(__name__)
@@ -23,6 +24,9 @@ DATABASE = os.path.join(app.root_path, "soonerbuddies.db")
 EMAIL_DOMAIN = "ou.edu"
 YEARS = ["Freshman", "Sophomore", "Junior", "Senior", "Graduate"]
 GENDERS = ["Prefer not to say", "Female", "Male", "Non-binary", "Other"]
+ROLES = ["Student", "Professor", "Faculty", "Staff"]
+ROLE_TITLES = {"Professor": "Prof.", "Faculty": "Faculty", "Staff": "Staff"}  # students wear their year instead
+MAX_MESSAGE_LENGTH = 500
 STARTING_CC = 150  # enough for a first item in the avatar shop
 
 # Studying in a dungeon ("fighting") earns rewards per minute.
@@ -103,14 +107,29 @@ def close_db(exc):
         db.close()
 
 
+# Columns added after the first release. Older databases get them on startup.
+ADDED_COLUMNS = {
+    "parties": [("raid_id", "INTEGER REFERENCES raids(id)")],
+    "users": [
+        ("role", "TEXT NOT NULL DEFAULT 'Student'"),
+        ("title", "TEXT NOT NULL DEFAULT ''"),
+        ("title_kind", "TEXT NOT NULL DEFAULT ''"),
+        ("active_pet", "TEXT NOT NULL DEFAULT ''"),
+        ("pet_pity", "INTEGER NOT NULL DEFAULT 0"),
+    ],
+}
+
+
 def init_db():
     db = get_db()
     with app.open_resource("schema.sql") as f:
         db.executescript(f.read().decode())
-    # Databases created before raid parties existed are missing this column.
-    if "raid_id" not in {row["name"] for row in db.execute("PRAGMA table_info(parties)")}:
-        db.execute("ALTER TABLE parties ADD COLUMN raid_id INTEGER REFERENCES raids(id)")
-        db.commit()
+    for table, columns in ADDED_COLUMNS.items():
+        existing = {row["name"] for row in db.execute(f"PRAGMA table_info({table})")}
+        for name, definition in columns:
+            if name not in existing:
+                db.execute(f"ALTER TABLE {table} ADD COLUMN {name} {definition}")
+    db.commit()
 
 
 with app.app_context():
@@ -148,16 +167,30 @@ def level_info(xp):
     return {"level": level, "title": title, "progress": xp, "cost": cost, "percent": 100 * xp // cost}
 
 
-def fight_rewards(minutes, party_bonus):
-    """(CC, XP) earned for a study session."""
+def with_bonuses(cc, xp, party_bonus, pet_id):
+    """Apply the party bonus and the active pet's boost to a base reward."""
     multiplier = PARTY_BONUS if party_bonus else 1
-    return round(minutes * CC_PER_MINUTE * multiplier), round(minutes * XP_PER_MINUTE * multiplier)
+    cc_boost, xp_boost = pets.boosts(pet_id)
+    return round(cc * multiplier * (1 + cc_boost / 100)), round(xp * multiplier * (1 + xp_boost / 100))
 
 
-def raid_rewards(party_bonus):
+def fight_rewards(minutes, party_bonus, pet_id=None):
+    """(CC, XP) earned for a dungeon run (study session)."""
+    return with_bonuses(minutes * CC_PER_MINUTE, minutes * XP_PER_MINUTE, party_bonus, pet_id)
+
+
+def raid_rewards(party_bonus, pet_id=None):
     """(CC, XP) earned for checking in at a raid."""
-    multiplier = PARTY_BONUS if party_bonus else 1
-    return round(RAID_CC * multiplier), round(RAID_XP * multiplier)
+    return with_bonuses(RAID_CC, RAID_XP, party_bonus, pet_id)
+
+
+def bonus_note(party_bonus, pet_id):
+    """' (party bonus, Boomer +20% CC)' for reward messages, or ''."""
+    notes = ["party bonus"] if party_bonus else []
+    pet = pets.PETS.get(pet_id)
+    if pet:
+        notes.append(f"{pet['name']} +{pet['percent']}% {pet['boosts'].upper()}")
+    return f" ({', '.join(notes)})" if notes else ""
 
 
 def flash_level_up(old_xp, gained_xp):
@@ -317,7 +350,7 @@ def start_fight(dungeon, party_id=None):
         (g.user["id"], dungeon, party_id, now()),
     )
     db.commit()
-    flash(f"Clock started at {place(dungeon)['name']}. Hit Finish when you're done studying.")
+    flash(f"You entered {place(dungeon)['name']}. Your dungeon run has started; clear it when you're done studying.")
 
 
 # --- Friends ----------------------------------------------------------------
@@ -369,6 +402,27 @@ def my_clan_ids():
     return {row["clan_id"] for row in rows}
 
 
+# --- Titles -----------------------------------------------------------------
+
+def title_options(user):
+    """[(kind, text)] titles this user can wear: their year (or staff role) and each clan they're in."""
+    if user["role"] in ROLE_TITLES:
+        options = [("role", ROLE_TITLES[user["role"]])]
+    else:
+        options = [("year", user["year"])]
+    clans = get_db().execute(
+        "SELECT c.id, c.name FROM clan_members m JOIN clans c ON c.id = m.clan_id WHERE m.user_id = ? ORDER BY c.name",
+        (user["id"],),
+    )
+    return options + [(f"clan:{clan['id']}", clan["name"]) for clan in clans]
+
+
+def set_title(user_id, kind):
+    """Wear the title of this kind, or no title if it isn't one of the user's options."""
+    text = dict(title_options(get_user(user_id))).get(kind, "")
+    get_db().execute("UPDATE users SET title = ?, title_kind = ? WHERE id = ?", (text, kind if text else "", user_id))
+
+
 # --- Template helpers -------------------------------------------------------
 
 app.add_template_filter(parse_courses, "courses")
@@ -409,6 +463,19 @@ def day_label(day):
 
 
 @app.template_global()
+def display_name(user):
+    """The user's name with their chosen title in front of it."""
+    if not user["title"]:
+        return user["name"]
+    return Markup('<span class="title-tag">{}</span> {}').format(user["title"], user["name"])
+
+
+@app.template_global()
+def pet_of(user):
+    return pets.PETS.get(user["active_pet"])
+
+
+@app.template_global()
 def elapsed_seconds(ts):
     return max(0, int((datetime.now() - datetime.fromisoformat(ts)).total_seconds()))
 
@@ -430,7 +497,7 @@ def back(default, **values):
 @app.context_processor
 def constants():
     return {
-        "years": YEARS, "genders": GENDERS, "dungeons": DUNGEONS, "party_hours": PARTY_HOURS,
+        "years": YEARS, "genders": GENDERS, "roles": ROLES, "dungeons": DUNGEONS, "party_hours": PARTY_HOURS,
         "clan_kinds": CLAN_KINDS, "clan_emblems": CLAN_EMBLEMS, "slots": avatar.SLOTS,
         "skin_tones": avatar.SKIN_TONES, "starting_cc": STARTING_CC, "time_scale": TIME_SCALE,
         "rewards": {"cc": CC_PER_MINUTE, "xp": XP_PER_MINUTE, "bonus": round((PARTY_BONUS - 1) * 100),
@@ -473,8 +540,8 @@ def login_required(view):
 def profile_error(form):
     if not (form.get("name", "").strip() and form.get("major", "").strip()):
         return "Please fill in your name and major."
-    if form.get("gender") not in GENDERS or form.get("year") not in YEARS:
-        return "Please pick your gender and year."
+    if form.get("gender") not in GENDERS or form.get("year") not in YEARS or form.get("role", "Student") not in ROLES:
+        return "Please pick your role, gender, and year."
     if not parse_courses(form.get("courses", "")):
         return "Add at least one class so we can match you."
     return None
@@ -490,9 +557,9 @@ def signup_error(form):
 
 
 def profile_values(form):
-    """(name, gender, major, year, courses) from a validated profile form."""
+    """(name, gender, major, year, courses, role) from a validated profile form."""
     return (form["name"].strip()[:40], form["gender"], form["major"].strip()[:60], form["year"],
-            ", ".join(parse_courses(form["courses"])))
+            ", ".join(parse_courses(form["courses"])), form.get("role", "Student"))
 
 
 @app.route("/signup", methods=["GET", "POST"])
@@ -504,11 +571,12 @@ def signup():
             db = get_db()
             try:
                 cur = db.execute(
-                    "INSERT INTO users (email, password_hash, cc, name, gender, major, year, courses)"
-                    " VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                    "INSERT INTO users (email, password_hash, cc, name, gender, major, year, courses, role)"
+                    " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
                     (form["email"].strip().lower(), generate_password_hash(form["password"]), STARTING_CC,
                      *profile_values(form)),
                 )
+                set_title(cur.lastrowid, "role" if form.get("role", "Student") in ROLE_TITLES else "year")
                 db.commit()
             except sqlite3.IntegrityError:
                 error = "An account with that email already exists."
@@ -599,15 +667,17 @@ def profile():
         if not error:
             db = get_db()
             db.execute(
-                "UPDATE users SET name = ?, gender = ?, major = ?, year = ?, courses = ? WHERE id = ?",
+                "UPDATE users SET name = ?, gender = ?, major = ?, year = ?, courses = ?, role = ? WHERE id = ?",
                 (*profile_values(request.form), g.user["id"]),
             )
+            # Re-resolve the title too, so a year or role change shows up in it.
+            set_title(g.user["id"], request.form.get("title", g.user["title_kind"]))
             db.commit()
             flash("Profile saved.")
             return redirect(url_for("player", user_id=g.user["id"]))
         flash(error, "error")
-        return render_template("profile.html", form=request.form)
-    return render_template("profile.html", form=dict(g.user))
+        return render_template("profile.html", form=request.form, titles=title_options(g.user))
+    return render_template("profile.html", form=dict(g.user), titles=title_options(g.user))
 
 
 # --- Avatar and crystal shop ------------------------------------------------
@@ -696,6 +766,59 @@ def set_skin():
 
 
 # --- Parties ----------------------------------------------------------------
+
+@app.route("/pets")
+@login_required
+def pet_page():
+    owned = {row["pet_id"] for row in get_db().execute("SELECT pet_id FROM user_pets WHERE user_id = ?", (g.user["id"],))}
+    return render_template(
+        "pets.html",
+        pets=pets.PETS,
+        rarities=pets.RARITIES,
+        owned=owned,
+        last=session.pop("last_summon", None),
+        cost=pets.SUMMON_COST,
+        refund=pets.DUPLICATE_REFUND,
+        pity_left=pets.PITY - g.user["pet_pity"],
+    )
+
+
+@app.post("/pets/summon")
+@login_required
+def summon_pet():
+    if g.user["cc"] < pets.SUMMON_COST:
+        flash(f"A summon costs {pets.SUMMON_COST} CC. Clear a dungeon or join a raid to earn more.", "error")
+        return redirect(url_for("pet_page"))
+    pet_id, pity = pets.summon(g.user["pet_pity"])
+    db = get_db()
+    is_new = db.execute(
+        "INSERT OR IGNORE INTO user_pets (user_id, pet_id, obtained_at) VALUES (?, ?, ?)", (g.user["id"], pet_id, now())
+    ).rowcount == 1
+    refund = 0 if is_new else pets.DUPLICATE_REFUND
+    db.execute(
+        "UPDATE users SET cc = cc - ? + ?, pet_pity = ?,"
+        " active_pet = CASE WHEN active_pet = '' THEN ? ELSE active_pet END WHERE id = ?",
+        (pets.SUMMON_COST, refund, pity, pet_id, g.user["id"]),
+    )
+    db.commit()
+    session["last_summon"] = {"pet": pet_id, "new": is_new}
+    return redirect(url_for("pet_page"))
+
+
+@app.post("/pets/<pet_id>/activate")
+@login_required
+def activate_pet(pet_id):
+    owns = get_db().execute(
+        "SELECT 1 FROM user_pets WHERE user_id = ? AND pet_id = ?", (g.user["id"], pet_id)
+    ).fetchone()
+    if not owns:
+        abort(404)
+    db = get_db()
+    db.execute("UPDATE users SET active_pet = ? WHERE id = ?", (pet_id, g.user["id"]))
+    db.commit()
+    flash(f"{pets.PETS[pet_id]['name']} is now your active pet.")
+    return back("pet_page")
+
 
 @app.route("/parties")
 @login_required
@@ -888,7 +1011,7 @@ def finish_fight():
         return back("dashboard")
     minutes = min(MAX_SESSION_MINUTES, elapsed_seconds(fight["started_at"]) * TIME_SCALE // 60)
     bonus = fight["party_id"] is not None and party_size(fight["party_id"]) >= 2
-    cc, xp = fight_rewards(minutes, bonus)
+    cc, xp = fight_rewards(minutes, bonus, g.user["active_pet"])
     db = get_db()
     db.execute(
         "UPDATE study_sessions SET ended_at = ?, minutes = ?, cc = ?, xp = ? WHERE id = ?",
@@ -903,7 +1026,7 @@ def finish_fight():
     if minutes == 0:
         flash("Session ended. Study for at least a minute to earn rewards.")
     else:
-        flash(f"Session finished: {minutes} min studied, +{cc} CC, +{xp} XP{' (includes party bonus)' if bonus else ''}.")
+        flash(f"Dungeon cleared: {minutes} min studied. Loot: +{cc} CC, +{xp} XP{bonus_note(bonus, g.user['active_pet'])}.")
         flash_level_up(g.user["xp"], xp)
     return back("dashboard")
 
@@ -999,7 +1122,7 @@ def raid_detail(raid_id):
         my_party=raid_party_for(raid_id),
         checked_in=checked_in(raid_id),
         suggested_meet=suggested_meet,
-        raid_reward=raid_rewards(False),
+        raid_reward=(RAID_CC, RAID_XP),
     )
 
 
@@ -1053,7 +1176,7 @@ def raid_checkin(raid_id):
         flash("You already checked in at this raid.")
     else:
         bonus = party_size(party["id"]) >= 2
-        cc, xp = raid_rewards(bonus)
+        cc, xp = raid_rewards(bonus, g.user["active_pet"])
         db = get_db()
         db.execute(
             "INSERT INTO raid_checkins (user_id, raid_id, checked_in_at) VALUES (?, ?, ?)", (g.user["id"], raid_id, now())
@@ -1063,7 +1186,7 @@ def raid_checkin(raid_id):
             (cc, cc, xp, g.user["id"]),
         )
         db.commit()
-        flash(f"Checked in at {raid['title']}: +{cc} CC, +{xp} XP{' (includes party bonus)' if bonus else ''}.")
+        flash(f"Raid joined: {raid['title']}. Loot: +{cc} CC, +{xp} XP{bonus_note(bonus, g.user['active_pet'])}.")
         flash_level_up(g.user["xp"], xp)
     return back("raid_detail", raid_id=raid_id)
 
@@ -1146,6 +1269,9 @@ def leave_clan(clan_id):
     clan = get_clan(clan_id)
     db = get_db()
     db.execute("DELETE FROM clan_members WHERE clan_id = ? AND user_id = ?", (clan_id, g.user["id"]))
+    db.execute(  # stop wearing the clan's name as a title
+        "UPDATE users SET title = '', title_kind = '' WHERE id = ? AND title_kind = ?", (g.user["id"], f"clan:{clan_id}")
+    )
     remaining = db.execute("SELECT COUNT(*) FROM clan_members WHERE clan_id = ?", (clan_id,)).fetchone()[0]
     if remaining == 0:
         db.execute("DELETE FROM clans WHERE id = ?", (clan_id,))
@@ -1190,6 +1316,88 @@ def leaderboard():
 
 
 # --- Friends ----------------------------------------------------------------
+
+# --- Chat -------------------------------------------------------------------
+
+def chat_rooms():
+    """Rooms the current user can read and post in, grouped for the sidebar.
+    Keys: "global", "clan:<id>", "class:<course>", and "dm:<friend's user id>"."""
+    db, me = get_db(), g.user["id"]
+    rooms = [{"key": "global", "label": "Global", "group": "Everyone"}]
+    for clan in db.execute(
+        "SELECT c.id, c.name, c.emblem FROM clan_members m JOIN clans c ON c.id = m.clan_id WHERE m.user_id = ? ORDER BY c.name",
+        (me,),
+    ):
+        rooms.append({"key": f"clan:{clan['id']}", "label": f"{clan['emblem']} {clan['name']}", "group": "Clan"})
+    for course in parse_courses(g.user["courses"]):
+        rooms.append({"key": f"class:{course}", "label": course, "group": "Classes"})
+    friends = [uid for uid, status in friend_relations().items() if status == "friends"]
+    if friends:
+        marks = ",".join("?" * len(friends))
+        for friend in db.execute(f"SELECT id, name FROM users WHERE id IN ({marks}) ORDER BY name", friends):
+            rooms.append({"key": f"dm:{friend['id']}", "label": friend["name"], "group": "Direct messages"})
+    return rooms
+
+
+def room_channel(key):
+    """Where a room's messages are stored. A DM is the same channel from both sides."""
+    if key.startswith("dm:"):
+        low, high = sorted((g.user["id"], int(key[3:])))
+        return f"dm:{low}:{high}"
+    return key
+
+
+def open_room(key):
+    """The room for this key if the current user is allowed in it, else 404."""
+    room = next((r for r in chat_rooms() if r["key"] == key), None)
+    if room is None:
+        abort(404)
+    return room
+
+
+def room_messages(key, after=0):
+    rows = get_db().execute(
+        "SELECT m.id, m.body, m.sent_at, m.user_id, u.name, u.title, u.skin, u.outfit FROM messages m"
+        " JOIN users u ON u.id = m.user_id WHERE m.channel = ? AND m.id > ? ORDER BY m.id DESC LIMIT 100",
+        (room_channel(key), after),
+    ).fetchall()
+    return rows[::-1]
+
+
+@app.route("/chat", methods=["GET", "POST"])
+@login_required
+def chat():
+    key = request.args.get("room", "global")
+    room = open_room(key)
+    if request.method == "POST":
+        body = request.form.get("body", "").strip()[:MAX_MESSAGE_LENGTH]
+        if body:
+            db = get_db()
+            db.execute(
+                "INSERT INTO messages (channel, user_id, body, sent_at) VALUES (?, ?, ?, ?)",
+                (room_channel(key), g.user["id"], body, now()),
+            )
+            db.commit()
+        return redirect(url_for("chat", room=key))
+    messages = room_messages(key)
+    return render_template(
+        "chat.html", rooms=chat_rooms(), room=room, messages=messages,
+        last_id=messages[-1]["id"] if messages else 0, max_length=MAX_MESSAGE_LENGTH,
+    )
+
+
+@app.route("/chat/poll")
+@login_required
+def chat_poll():
+    """New messages since `after`, rendered, for the chat page to append every few seconds."""
+    key = request.args.get("room", "global")
+    open_room(key)
+    messages = room_messages(key, request.args.get("after", 0, type=int))
+    return {
+        "html": render_template("_messages.html", messages=messages) if messages else "",
+        "last_id": messages[-1]["id"] if messages else request.args.get("after", 0, type=int),
+    }
+
 
 @app.route("/friends")
 @login_required

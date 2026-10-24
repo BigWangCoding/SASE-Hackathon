@@ -1,17 +1,17 @@
 {% extends "base.html" %}
-{% block title %}Dungeons{% endblock %}
+{% block title %}Dungeon rooms{% endblock %}
 {% block content %}
-<h1>Dungeons</h1>
+<h1>Dungeon rooms</h1>
 <p class="lead">
-  Dungeons are study spots on campus. Start a session at one and you earn {{ rewards.cc }} CC and
-  {{ rewards.xp }} XP per minute until you hit Finish (up to {{ rewards.max_hours }} hours).
-  To get the {{ rewards.bonus }}% party bonus, start from a <a href="{{ url_for('party_list') }}">party</a> instead.
+  Dungeon rooms are real study spots on campus. Enter one to start a dungeon run (a study session).
+  You earn {{ rewards.cc }} CC and {{ rewards.xp }} XP of loot per minute until you clear it, up to
+  {{ rewards.max_hours }} hours. Run it from a <a href="{{ url_for('party_list') }}">party</a> for {{ rewards.bonus }}% more.
 </p>
 
 <div class="table-wrap">
   <table>
     <thead>
-      <tr><th>Spot</th><th>Type</th><th class="num">Studying now</th><th class="num">Parties meeting</th><th></th></tr>
+      <tr><th>Dungeon room</th><th>Type</th><th class="num">Adventurers inside</th><th class="num">Parties here</th><th></th></tr>
     </thead>
     <tbody>
       {% for key, d in dungeons.items() %}
@@ -23,7 +23,7 @@
           <td class="num">
             <form method="post" action="{{ url_for('enter_dungeon', key=key) }}">
               {{ next_field() }}
-              <button class="btn quiet small" type="submit" {% if g.fight %}disabled title="Finish your current session first"{% endif %}>Study here</button>
+              <button class="btn quiet small" type="submit" {% if g.fight %}disabled title="Clear your current dungeon run first"{% endif %}>Enter</button>
             </form>
           </td>
         </tr>

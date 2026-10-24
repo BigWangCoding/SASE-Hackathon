@@ -15,8 +15,30 @@ CREATE TABLE IF NOT EXISTS users (
     study_minutes INTEGER NOT NULL DEFAULT 0,
     raids INTEGER NOT NULL DEFAULT 0,         -- campus events attended (OU Engage, coming soon)
     skin TEXT NOT NULL DEFAULT '#e8b48a',
-    outfit TEXT NOT NULL DEFAULT '{}'         -- JSON {slot: item_id} of equipped avatar items
+    outfit TEXT NOT NULL DEFAULT '{}',        -- JSON {slot: item_id} of equipped avatar items
+    role TEXT NOT NULL DEFAULT 'Student',     -- Student, Professor, Faculty, or Staff
+    title TEXT NOT NULL DEFAULT '',           -- shown before the name, e.g. "Sophomore" or a clan name
+    title_kind TEXT NOT NULL DEFAULT '',      -- where the title came from: "year", "role", or "clan:<id>"
+    active_pet TEXT NOT NULL DEFAULT '',      -- key into pets.PETS
+    pet_pity INTEGER NOT NULL DEFAULT 0       -- summons since the last Legendary
 );
+
+CREATE TABLE IF NOT EXISTS user_pets (
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    pet_id TEXT NOT NULL,
+    obtained_at TEXT NOT NULL,
+    PRIMARY KEY (user_id, pet_id)
+);
+
+-- Chat. channel is "global", "clan:<clan id>", "class:<course>", or "dm:<lower user id>:<higher user id>".
+CREATE TABLE IF NOT EXISTS messages (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    channel TEXT NOT NULL,
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    body TEXT NOT NULL,
+    sent_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS messages_by_channel ON messages (channel, id);
 
 CREATE TABLE IF NOT EXISTS inventory (
     user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,

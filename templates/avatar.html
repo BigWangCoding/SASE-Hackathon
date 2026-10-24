@@ -1,16 +1,21 @@
 {% extends "base.html" %}
+{% from "_macros.html" import figure %}
 {% block title %}Avatar shop{% endblock %}
 {% block content %}
 <div class="page-head">
   <div>
-    <h1>Avatar shop</h1>
+    <h1>Shop</h1>
     <p class="caption">You have {{ g.user.cc | num }} Crimson Crystals. Each item is shown on your avatar before you buy it.</p>
   </div>
 </div>
+<nav class="tabs">
+  <a href="{{ url_for('avatar_page') }}" class="active">Avatar items</a>
+  <a href="{{ url_for('pet_page') }}">Pet summons</a>
+</nav>
 
 <div class="split" style="grid-template-columns: minmax(0, 1fr) minmax(0, 3fr)">
   <section>
-    <div class="figure">{{ avatar_svg(g.user, 170) }}</div>
+    {{ figure(g.user, 170) }}
 
     <h2>Skin tone</h2>
     <form method="post" action="{{ url_for('set_skin') }}" class="swatches">

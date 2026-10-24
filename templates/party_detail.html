@@ -54,13 +54,13 @@
           {% endif %}
         {% elif is_member %}
           {% if g.fight and g.fight.party_id == party.id %}
-            <span class="live">You're studying with this party.</span>
+            <span class="live">You're on a dungeon run with this party.</span>
           {% elif party.live %}
             <form method="post" action="{{ url_for('party_study', party_id=party.id) }}">
-              <button class="btn" type="submit" {% if g.fight %}disabled title="Finish your current session first"{% endif %}>Start studying with the party</button>
+              <button class="btn" type="submit" {% if g.fight %}disabled title="Clear your current dungeon run first"{% endif %}>Start a party dungeon run</button>
             </form>
           {% else %}
-            <span class="caption">You can start a session here once the party begins.</span>
+            <span class="caption">Your party can start its dungeon run once it begins.</span>
           {% endif %}
           {% if is_leader %}
             <form method="post" action="{{ url_for('disband_party', party_id=party.id) }}">

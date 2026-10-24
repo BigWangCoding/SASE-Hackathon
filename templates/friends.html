@@ -28,7 +28,10 @@
     <h2>Your friends ({{ friends | length }})</h2>
     <div class="rows">
       {% for u in friends %}
-        {% call player_row(u, studying=u.id in studying) %}{{ remove_button(u.id, "Remove") }}{% endcall %}
+        {% call player_row(u, studying=u.id in studying) %}
+          <a class="btn small" href="{{ url_for('chat', room='dm:' ~ u.id) }}">Message</a>
+          {{ remove_button(u.id, "Remove") }}
+        {% endcall %}
       {% else %}
         <p class="empty">No friends yet. Add classmates from the list on the right.</p>
       {% endfor %}

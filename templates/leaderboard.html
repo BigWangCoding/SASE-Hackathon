@@ -35,7 +35,7 @@
             <td><a class="who" href="{{ url_for('clan_detail', clan_id=row.clan.id) }}"><span class="emblem">{{ row.clan.emblem }}</span>{{ row.clan.name }}</a></td>
             <td class="caption">{{ row.clan.kind }} · {{ row.clan.members }} members</td>
           {% else %}
-            <td><a class="who" href="{{ url_for('player', user_id=row.user.id) }}">{{ avatar_svg(row.user, 32, bust=True) }}{{ row.user.name }}</a></td>
+            <td><a class="who" href="{{ url_for('player', user_id=row.user.id) }}">{{ avatar_svg(row.user, 32, bust=True) }}{{ display_name(row.user) }}</a></td>
             <td class="caption">{{ row.user.major }}</td>
           {% endif %}
           <td class="num">{{ metric_value(metric, row.value) }}</td>
@@ -46,7 +46,7 @@
       {% if my_rank and my_rank > rows | length %}
         <tr class="me">
           <td class="rank">{{ my_rank }}</td>
-          <td><span class="who">{{ avatar_svg(g.user, 32, bust=True) }}{{ g.user.name }}</span></td>
+          <td><span class="who">{{ avatar_svg(g.user, 32, bust=True) }}{{ display_name(g.user) }}</span></td>
           <td class="caption">You</td>
           <td class="num">{{ metric_value(metric, my_value) }}</td>
         </tr>

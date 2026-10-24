@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+{% block title %}Chat · {{ room.label }}{% endblock %}
+{% block content %}
+<div class="chat">
+  <nav class="chat-rooms" aria-label="Chat rooms">
+    {% for group in ["Everyone", "Clan", "Classes", "Direct messages"] %}
+      {% set group_rooms = rooms | selectattr("group", "equalto", group) | list %}
+      <h3>{{ group }}</h3>
+      {% for r in group_rooms %}
+        <a href="{{ url_for('chat', room=r.key) }}"{% if r.key == room.key %} class="active"{% endif %}>{{ r.label }}</a>
+      {% else %}
+        <p class="caption">
+          {% if group == "Clan" %}<a href="{{ url_for('clan_list') }}">Join a clan</a> to get a clan chat.
+          {% elif group == "Classes" %}<a href="{{ url_for('profile') }}">Add your classes</a> to chat with classmates.
+          {% else %}<a href="{{ url_for('friend_list') }}">Add friends</a> to message them.{% endif %}
+        </p>
+      {% endfor %}
+    {% endfor %}
+  </nav>
+
+  <section class="chat-main">
+    <div class="chat-head">
+      <h1>{{ room.label }}</h1>
+      <p class="caption">
+        {% if room.group == "Everyone" %}Every Sooner Buddies player can read this room.
+        {% elif room.group == "Clan" %}Only members of this clan can see these messages.
+        {% elif room.group == "Classes" %}Everyone with {{ room.label }} on their profile can see this room.
+        {% else %}Only you and {{ room.label }} can see these messages.{% endif %}
+      </p>
+    </div>
+    <div class="chat-log" id="chat-log" data-last-id="{{ last_id }}" data-room="{{ room.key }}">
+      {% include "_messages.html" %}
+      {% if not messages %}<p class="empty" id="chat-empty">No messages yet. Say hi.</p>{% endif %}
+    </div>
+    <form class="chat-form" method="post" action="{{ url_for('chat', room=room.key) }}">
+      <input name="body" maxlength="{{ max_length }}" placeholder="Message {{ room.label }}" autocomplete="off" required autofocus>
+      <button class="btn" type="submit">Send</button>
+    </form>
+  </section>
+</div>
+
+<script>
+  // Checks for new messages every few seconds and appends them.
+  const log = document.getElementById("chat-log");
+  let lastId = Number(log.dataset.lastId);
+  log.scrollTop = log.scrollHeight;
+  setInterval(async () => {
+    const response = await fetch(`{{ url_for('chat_poll') }}?room=${encodeURIComponent(log.dataset.room)}&after=${lastId}`);
+    if (!response.ok) return;
+    const data = await response.json();
+    if (!data.html) return;
+    document.getElementById("chat-empty")?.remove();
+    const atBottom = log.scrollHeight - log.scrollTop - log.clientHeight < 40;
+    log.insertAdjacentHTML("beforeend", data.html);
+    lastId = data.last_id;
+    if (atBottom) log.scrollTop = log.scrollHeight;
+  }, 3000);
+</script>
+{% endblock %}

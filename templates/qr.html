@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+{% block title %}QR code · {{ title }}{% endblock %}
+{% block content %}
+<div class="qr-sheet">
+  <p class="caption no-print"><a href="{{ url_for('dungeon_list') if kind == 'dungeon' else url_for('raid_detail', raid_id=ident) }}">← Back</a></p>
+  <p class="code">Sooner Buddies · {{ "Dungeon room" if kind == "dungeon" else "Raid" }}</p>
+  <h1>{{ title }}</h1>
+  <div class="qr-big">{{ qr_svg(kind, ident, 10) }}</div>
+  <p class="lead">Scan with your phone's camera, or the Scan button in Sooner Buddies, to {{ action }}.</p>
+  <div class="actions no-print">
+    <button class="btn" type="button" onclick="window.print()">Print</button>
+  </div>
+</div>
+{% endblock %}

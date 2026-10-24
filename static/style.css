@@ -42,19 +42,19 @@ p { margin: 0 0 12px; }
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 8px 28px;
+  gap: 8px 22px;
   max-width: 1120px;
   margin: 0 auto;
   padding: 12px 24px;
 }
 .wordmark { color: var(--cream); font: 600 1.25rem var(--serif); text-decoration: none; }
 .wordmark:hover { color: #fff; }
-.nav { display: flex; flex-wrap: wrap; gap: 4px 18px; }
-.nav a { padding: 4px 0; border-bottom: 2px solid transparent; color: var(--cream); font-size: 0.95rem; text-decoration: none; }
+.nav { display: flex; flex-wrap: wrap; gap: 4px 15px; }
+.nav a { padding: 4px 0; border-bottom: 2px solid transparent; color: var(--cream); font-size: 0.92rem; text-decoration: none; }
 .nav a:hover { color: #fff; }
 .nav a.active { border-bottom-color: var(--cream); }
 .count { margin-left: 4px; padding: 0 6px; border-radius: 8px; background: var(--cream); color: var(--crimson); font-size: 0.75rem; font-weight: 600; }
-.account { display: flex; align-items: center; gap: 16px; margin-left: auto; font-size: 0.95rem; }
+.account { display: flex; align-items: center; gap: 14px; margin-left: auto; font-size: 0.92rem; }
 .account a { display: flex; align-items: center; gap: 8px; color: var(--cream); text-decoration: none; }
 .account a:hover { color: #fff; }
 
@@ -241,4 +241,69 @@ p.title-tag { margin: 0 0 2px; font-size: 0.8rem; }
   .chat { grid-template-columns: 1fr; gap: 12px; }
   .chat-rooms { display: flex; flex-wrap: wrap; gap: 4px 8px; }
   .chat-rooms h3 { width: 100%; margin: 8px 0 0; }
+}
+
+/* ---------- Spot icons, peeks, and player grids ---------- */
+.spot-icon { display: block; flex-shrink: 0; border: 2px solid var(--crimson); border-radius: 50%; background: var(--cream); }
+.spot-icon.photo { object-fit: cover; }
+.peek { position: relative; flex-shrink: 0; }
+.peek > summary { position: relative; display: block; list-style: none; cursor: pointer; }
+.peek > summary::-webkit-details-marker { display: none; }
+.peek > summary:hover .spot-icon, .peek[open] > summary .spot-icon { box-shadow: 0 0 0 3px var(--cream), 0 0 0 5px var(--crimson); }
+.map-count {
+  position: absolute; right: -4px; bottom: -4px; min-width: 20px; padding: 0 5px;
+  border: 2px solid #fff; border-radius: 10px; background: var(--crimson); color: var(--cream);
+  font-size: 0.75rem; font-weight: 600; line-height: 16px; text-align: center;
+}
+.peek-panel {
+  position: absolute; z-index: 20; top: calc(100% + 8px); left: 0; width: 300px; padding: 14px;
+  border: 1px solid var(--line); border-radius: 8px; background: var(--surface); box-shadow: 0 8px 24px #2a1c1826;
+}
+.peek-panel > .caption { display: block; margin-bottom: 8px; }
+.spot-row { align-items: flex-start; }
+.spot-row .grow .caption { display: block; }
+.spot-row.boosted { background: var(--cream); }
+.raid-link { color: inherit; text-decoration: none; }
+.raid-link:hover strong { color: var(--crimson); }
+.raid-link .code { display: block; min-width: 0; }
+.raid-head { display: flex; align-items: center; gap: 14px; }
+.raid-head .code { margin: 0; }
+
+.avatar-pet { position: relative; display: inline-block; flex-shrink: 0; width: var(--size); height: var(--size); }
+.pet-badge {
+  position: absolute; right: -4px; bottom: -4px; display: grid; place-items: center;
+  width: calc(var(--size) * 0.48); height: calc(var(--size) * 0.48); min-width: 16px; min-height: 16px;
+  border: 1.5px solid var(--line); border-radius: 50%; background: #fff; font-size: calc(var(--size) * 0.3); line-height: 1;
+}
+.player-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(60px, 1fr)); gap: 10px 6px; margin: 8px 0; }
+.player-grid a { display: grid; justify-items: center; gap: 4px; color: var(--ink); font-size: 0.8rem; text-decoration: none; }
+.player-grid a:hover { color: var(--crimson); }
+.online-dot { width: 10px; height: 10px; border-radius: 50%; background: var(--green); }
+
+/* ---------- Map ---------- */
+.campus-map { height: 68vh; min-height: 420px; margin: 16px 0 8px; border: 1px solid var(--line); border-radius: 8px; }
+.map-marker { position: relative; }
+.map-marker .spot-icon { width: 100%; height: 100%; box-shadow: 0 2px 6px #2a1c1866; }
+.map-marker.dungeon { width: 52px; height: 52px; }
+.map-marker.raid { width: 34px; height: 34px; }
+.map-marker.raid .map-count { right: -6px; bottom: -6px; min-width: 16px; font-size: 0.65rem; line-height: 13px; }
+.spot-popup { min-width: 240px; font: 14px/1.45 var(--sans); }
+.spot-popup-head { display: flex; align-items: center; gap: 10px; margin-bottom: 4px; }
+.spot-popup-head .caption { display: block; }
+.spot-popup-raid { margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--line); }
+.spot-popup-actions { margin: 6px 0 0; }
+.leaflet-container a.leaflet-popup-close-button { color: var(--muted); }
+
+/* ---------- QR codes and the scanner ---------- */
+.qr-inline { display: flex; align-items: center; gap: 14px; margin-top: 20px; }
+.qr-inline svg { flex-shrink: 0; }
+.qr-sheet { max-width: 560px; margin: 0 auto; text-align: center; }
+.qr-sheet .actions { justify-content: center; }
+.qr-big svg { max-width: 100%; height: auto; }
+.scanner { overflow: hidden; max-width: 480px; aspect-ratio: 4 / 3; margin: 16px 0 8px; border: 1px solid var(--line); border-radius: 8px; background: var(--ink); }
+.scanner video { width: 100%; height: 100%; object-fit: cover; }
+
+@media print {
+  .site-header, .session-bar, .footer, .no-print, .flash { display: none !important; }
+  body { background: #fff; }
 }

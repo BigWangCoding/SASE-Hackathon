@@ -10,7 +10,13 @@
 {% endmacro %}
 
 {% block content %}
-<h1>Friends</h1>
+<h1>Discover</h1>
+<nav class="tabs">
+  <a href="{{ url_for('discover', tab='online') }}">Online now</a>
+  <a href="{{ url_for('discover', tab='major') }}">Similar majors</a>
+  <a href="{{ url_for('discover', tab='year') }}">Similar year</a>
+  <a href="{{ url_for('friend_list') }}" class="active">Friends{% if g.friend_requests %} <span class="count">{{ g.friend_requests }}</span>{% endif %}</a>
+</nav>
 <div class="split">
   <section>
     {% if received %}

@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% block title %}Create a raid{% endblock %}
+{% block content %}
+<a class="back" href="{{ url_for('raid_list') }}">← Raids</a>
+<div class="form">
+  <h1>Create a raid</h1>
+  <p class="caption">
+    Host your own campus event: a tailgate, a watch party, a club meeting, a study jam. You'll lead its first raid party,
+    and once it's posted you can boost it to the top of the Raids tab with CC.
+  </p>
+  <form method="post">
+    <label class="field"><span>Name</span>
+      <input name="name" maxlength="60" value="{{ form.get('name', '') }}" placeholder="South Carolina pregame tailgate" required>
+    </label>
+    <div class="form-row">
+      <label class="field"><span>Type</span>
+        <select name="category">
+          {% for c in categories %}<option {% if form.get('category') == c %}selected{% endif %}>{{ c }}</option>{% endfor %}
+        </select>
+      </label>
+      <label class="field"><span>Where on campus</span>
+        <select name="place">
+          {% for key, name in places.items() %}<option value="{{ key }}" {% if form.get('place') == key %}selected{% endif %}>{{ name }}</option>{% endfor %}
+        </select>
+      </label>
+    </div>
+    <div class="form-row">
+      <label class="field"><span>Starts</span>
+        <input type="datetime-local" name="starts_at" value="{{ form.get('starts_at', '') }}" required>
+      </label>
+      <label class="field"><span>Length</span>
+        <select name="hours">
+          {% for h in range(1, 7) %}<option value="{{ h }}" {% if form.get('hours', '2') == h | string %}selected{% endif %}>{{ h }} hour{{ 's' if h > 1 }}</option>{% endfor %}
+        </select>
+      </label>
+    </div>
+    <label class="field"><span>Details <small>(optional)</small></span>
+      <input name="description" maxlength="300" value="{{ form.get('description', '') }}" placeholder="Bring a chair. Burgers at noon.">
+    </label>
+    <button class="btn" type="submit">Create raid</button>
+  </form>
+</div>
+{% endblock %}

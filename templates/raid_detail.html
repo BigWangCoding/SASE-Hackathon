@@ -1,32 +1,55 @@
 {% extends "base.html" %}
+{% from "_macros.html" import player_grid, avatar_pet %}
 {% block title %}{{ raid.title }}{% endblock %}
 {% block content %}
 <a class="back" href="{{ url_for('raid_list') }}">← Raids</a>
 <div class="split">
   <section>
-    <p class="code">{{ raid.sport }}</p>
-    <h1>OU {{ raid.at_vs }} {{ raid.opponent }}</h1>
+    <div class="raid-head">
+      {{ raid_icon(raid, 56) }}
+      <div>
+        <p class="code">{{ raid.sport }}{% if raid.custom %} · student raid{% endif %}{% if raid.boosted %} · <span class="joined">Boosted</span>{% endif %}</p>
+        <h1>{% if raid.custom %}{{ raid.opponent }}{% else %}OU {{ raid.at_vs }} {{ raid.opponent }}{% endif %}</h1>
+      </div>
+    </div>
     <p class="lead">
       {{ raid.day | day_label }} · {{ raid.time_text }}<br>
       {{ raid.where }}
     </p>
-    <p>{{ raid.description }}</p>
+    {% if raid.description %}<p>{{ raid.description }}</p>{% endif %}
 
     <div class="table-wrap">
       <table class="facts">
         <tbody>
-          <tr><td>When</td><td>{{ raid.starts_at[:10] | day_label }}{% if raid.ends_at[:10] != raid.starts_at[:10] %} to {{ raid.ends_at[:10] | day_label }}{% endif %}, {{ raid.time_text }}</td></tr>
-          <tr><td>Where</td><td>{{ raid.where }}</td></tr>
-          <tr><td>Home or away</td><td>{{ "Home" if raid.home_away == "H" else "Away" if raid.home_away == "A" else "Neutral site" }}</td></tr>
+          <tr><td>When</td><td>{{ raid.starts_at[:10] | day_label }}{% if raid.ends_at[:10] != raid.starts_at[:10] %} to {{ raid.ends_at[:10] | day_label }}{% endif %}, {{ raid.time_text }}{% if raid.custom %} to {{ raid.ends_at | clock }}{% endif %}</td></tr>
+          <tr><td>Where</td><td>{{ raid.where }}{% if raid.spot_key %} · <a href="{{ url_for('campus_map') }}">on the map</a>{% endif %}</td></tr>
+          {% if creator %}
+            <tr><td>Created by</td><td><a href="{{ url_for('player', user_id=creator.id) }}">{{ display_name(creator) }}</a></td></tr>
+          {% else %}
+            <tr><td>Home or away</td><td>{{ "Home" if raid.home_away == "H" else "Away" if raid.home_away == "A" else "Neutral site" }}</td></tr>
+          {% endif %}
           {% if raid.tv %}<tr><td>TV</td><td>{{ raid.tv }}</td></tr>{% endif %}
-          {% if raid.note %}<tr><td>Note</td><td>{{ raid.note }}</td></tr>{% endif %}
-          <tr><td>Links</td><td>
-            {% if raid.tickets_url %}<a href="{{ raid.tickets_url }}" rel="noopener" target="_blank">Tickets</a> · {% endif %}
-            <a href="{{ raid.schedule_url }}" rel="noopener" target="_blank">{{ raid.sport }} schedule on SoonerSports.com</a>
-          </td></tr>
+          {% if raid.note and not raid.custom %}<tr><td>Note</td><td>{{ raid.note }}</td></tr>{% endif %}
+          {% if raid.schedule_url or raid.tickets_url %}
+            <tr><td>Links</td><td>
+              {% if raid.tickets_url %}<a href="{{ raid.tickets_url }}" rel="noopener" target="_blank">Tickets</a>{% if raid.schedule_url %} · {% endif %}{% endif %}
+              {% if raid.schedule_url %}<a href="{{ raid.schedule_url }}" rel="noopener" target="_blank">{{ raid.sport }} schedule on SoonerSports.com</a>{% endif %}
+            </td></tr>
+          {% endif %}
         </tbody>
       </table>
     </div>
+
+    {% if creator and creator.id == g.user.id and raid.ends_at > now_stamp %}
+      <h2>Boost your raid</h2>
+      <p class="caption">
+        {% if raid.boosted %}Pinned to the top of the Raids tab until {{ raid.boosted_until | when }}. Boost again to add {{ boost_hours }} more hours.
+        {% else %}Pin it to the top of the Raids tab for {{ boost_hours }} hours so more people find it.{% endif %}
+      </p>
+      <form method="post" action="{{ url_for('raid_boost', raid_id=raid.id) }}">
+        <button class="btn" type="submit" {% if g.user.cc < boost_cc %}disabled title="You need {{ boost_cc - g.user.cc }} more CC"{% endif %}>Boost for {{ boost_cc }} CC</button>
+      </form>
+    {% endif %}
 
     <h2>Check in</h2>
     {% if checked_in %}
@@ -39,14 +62,21 @@
       <p class="caption">{{ raid_reward[0] }} CC and {{ raid_reward[1] }} XP, plus {{ rewards.bonus }}% if your party has 2+ members.</p>
     {% else %}
       <p class="caption">
-        On the day of the event, raid party members can check in for {{ raid_reward[0] }} CC and {{ raid_reward[1] }} XP
-        ({{ rewards.bonus }}% more with 2+ in the party), and it counts toward your raids.
-        {% if not my_party %}Join or start a raid party first.{% endif %}
+        On the day of the event, scan the raid's QR code there (or check in from your raid party) for
+        {{ raid_reward[0] }} CC and {{ raid_reward[1] }} XP, {{ rewards.bonus }}% more with 2+ in your party.
       </p>
     {% endif %}
+    <div class="qr-inline">
+      {{ qr_svg("raid", raid.id, 3) }}
+      <p class="caption">This raid's QR code. Post it at the event; scanning it checks people in.
+        <a href="{{ url_for('qr_page', kind='raid', ident=raid.id) }}">Printable version</a></p>
+    </div>
   </section>
 
   <section>
+    <h2>Who's going ({{ players | length }})</h2>
+    {{ player_grid(players, "Nobody's going yet. Start or join a raid party.") }}
+
     <h2>Raid parties</h2>
     <div class="rows">
       {% for p in parties %}
@@ -55,7 +85,7 @@
             <strong>{{ p.name }}</strong>
             <span class="caption">Meet at {{ p.spot }}, {{ p.starts_at | when }} · led by {{ p.leader_name }}</span>
           </span>
-          <span class="avatar-stack">{% for m in p.members[:4] %}{{ avatar_svg(m, 28, bust=True) }}{% endfor %}</span>
+          <span class="avatar-stack">{% for m in p.members[:4] %}{{ avatar_pet(m, 28) }}{% endfor %}</span>
           <span class="row-end caption">
             {{ p.member_count }} of {{ p.capacity }}
             {% if my_party and my_party.id == p.id %}<span class="joined">you're in</span>{% endif %}

@@ -1,0 +1,12 @@
+{% from "_macros.html" import player_grid %}
+<div class="spot-popup">
+  <div class="spot-popup-head">
+    {{ dungeon_icon(key, 40) }}
+    <div>
+      <strong>{{ title }}</strong>
+      <span class="caption">{{ subtitle }} · {{ people | length }} inside</span>
+    </div>
+  </div>
+  {{ player_grid(people, "Nobody's on a dungeon run here right now.") }}
+  <p class="spot-popup-actions"><a href="{{ url_for('dungeon_list') }}#{{ key }}">Dungeon room</a> · <a href="{{ url_for('qr_page', kind='dungeon', ident=key) }}">QR code</a></p>
+</div>

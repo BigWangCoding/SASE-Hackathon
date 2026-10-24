@@ -12,7 +12,7 @@ from werkzeug.security import generate_password_hash
 
 import avatar
 import raids as raid_feed
-from app import app, get_db, set_title, stamp
+from app import CAMPUS_PLACES, CUSTOM_RAID_ID_START, app, get_db, set_title, stamp
 
 PASSWORD = "password123"
 
@@ -77,6 +77,19 @@ PET_COLLECTIONS = {
     "ava": ["box_turtle"],
     "noah": ["raccoon"],
 }
+
+# Players active in the last few minutes, so Discover's "Online now" has people in it.
+ONLINE = ["ava", "maya", "jordan", "noah", "emma", "olivia", "taylor", "hale"]
+
+# Raids students created: (creator, name, type, campus place, (days from now, hour), hours, details, boosted?, members).
+CUSTOM_RAIDS = [
+    ("liam", "Pregame tailgate", "Tailgate", "stadium", (1, 11), 3,
+     "Burgers, cornhole, and crimson everything. Bring a chair.", True, ["taylor", "ava", "sam"]),
+    ("riley", "Code Crusaders hack night", "Club event", "devon", (0, 19), 3,
+     "Build anything you want. Pizza at 8.", False, ["jordan", "noah"]),
+    ("maya", "Orgo flashcard jam", "Study jam", "bizzell", (2, 18), 2,
+     "Reaction mechanisms, rapid fire.", False, ["sam"]),
+]
 
 # Chat history: (room, sender, message, minutes ago). Rooms are "global", "clan:<clan name>",
 # "class:<course>", or "dm:<one handle>:<other handle>".
@@ -294,6 +307,32 @@ with app.app_context():
             [(cur.lastrowid, ids[m], stamp(right_now - timedelta(hours=2))) for m in [leader, *members]],
         )
         raid_party_count += 1
+
+    db.executemany("UPDATE users SET last_seen = ? WHERE id = ?",
+                   [(stamp(datetime.now() - timedelta(minutes=1)), ids[who]) for who in ONLINE])
+
+    db.execute("DELETE FROM raids WHERE creator_id IS NOT NULL OR id >= ?", (CUSTOM_RAID_ID_START,))
+    for offset, (creator, name, category, place_key, (days, hour), hours_long, details, boosted, members) in enumerate(CUSTOM_RAIDS):
+        start = max(right_now.replace(hour=hour, minute=0) + timedelta(days=days), right_now + timedelta(minutes=30))
+        end = start + timedelta(hours=hours_long)
+        raid_id = CUSTOM_RAID_ID_START + offset
+        db.execute(
+            "INSERT INTO raids (id, sport, sport_slug, opponent, at_vs, home_away, venue, city, starts_at, ends_at,"
+            " time_text, tv, note, tickets_url, synced_at, creator_id, place_key, boosted_until)"
+            " VALUES (?, ?, 'custom', ?, '', 'H', ?, 'Norman, Okla.', ?, ?, ?, '', ?, '', ?, ?, ?, ?)",
+            (raid_id, category, name, CAMPUS_PLACES[place_key], stamp(start), stamp(end),
+             start.strftime("%I:%M %p").lstrip("0"), details, stamp(right_now), ids[creator], place_key,
+             stamp(right_now + timedelta(hours=24)) if boosted else ""),
+        )
+        cur = db.execute(
+            "INSERT INTO parties (leader_id, name, course, dungeon, spot, description, capacity, starts_at, ends_at, raid_id)"
+            " VALUES (?, ?, ?, 'other', ?, '', 20, ?, ?, ?)",
+            (ids[creator], f"{creator.title()}'s crew", category, CAMPUS_PLACES[place_key], stamp(start), stamp(end), raid_id),
+        )
+        db.executemany(
+            "INSERT INTO party_members (party_id, user_id, joined_at) VALUES (?, ?, ?)",
+            [(cur.lastrowid, ids[m], stamp(right_now)) for m in [creator, *members]],
+        )
     db.commit()
 
 print(f"Seeded {len(STUDENTS)} adventurers, {len(CLANS)} clans, {len(PARTIES)} parties, "

@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% from "_macros.html" import player_row, friend_button %}
+{% block title %}Discover{% endblock %}
+{% block content %}
+<h1>Discover</h1>
+<p class="caption">Find other adventurers: who's online now, who's in your major, and who's in your year.</p>
+
+<nav class="tabs">
+  <a href="{{ url_for('discover', tab='online') }}"{% if tab == 'online' %} class="active"{% endif %}>Online now</a>
+  <a href="{{ url_for('discover', tab='major') }}"{% if tab == 'major' %} class="active"{% endif %}>Similar majors</a>
+  <a href="{{ url_for('discover', tab='year') }}"{% if tab == 'year' %} class="active"{% endif %}>Similar year</a>
+  <a href="{{ url_for('friend_list') }}">Friends{% if g.friend_requests %} <span class="count">{{ g.friend_requests }}</span>{% endif %}</a>
+</nav>
+
+<p class="caption">
+  {% if tab == "online" %}Active on Sooner Buddies in the last few minutes.
+  {% elif tab == "major" %}Your major is {{ g.user.major }}. Same major first, then related ones.
+  {% else %}You're a {{ g.user.year }}. Same year first, then the years on either side.{% endif %}
+</p>
+
+<div class="rows">
+  {% for u, note in players %}
+    {% set where = studying.get(u.id) %}
+    {% call player_row(u, note, studying=where is not none) %}
+      {% if is_online(u) %}<span class="online-dot" title="Online now"></span>{% endif %}
+      {% if relations.get(u.id) == "friends" %}
+        <a class="btn small" href="{{ url_for('chat', room='dm:' ~ u.id) }}">Message</a>
+      {% else %}
+        {{ friend_button(u.id, relations.get(u.id)) }}
+      {% endif %}
+    {% endcall %}
+  {% else %}
+    <p class="empty">
+      {% if tab == "online" %}Nobody else is online right now.
+      {% elif tab == "major" %}Nobody else in a similar major yet.
+      {% else %}Nobody else in a similar year yet.{% endif %}
+    </p>
+  {% endfor %}
+</div>
+{% endblock %}

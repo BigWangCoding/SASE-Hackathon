@@ -20,7 +20,8 @@ CREATE TABLE IF NOT EXISTS users (
     title TEXT NOT NULL DEFAULT '',           -- shown before the name, e.g. "Sophomore" or a clan name
     title_kind TEXT NOT NULL DEFAULT '',      -- where the title came from: "year", "role", or "clan:<id>"
     active_pet TEXT NOT NULL DEFAULT '',      -- key into pets.PETS
-    pet_pity INTEGER NOT NULL DEFAULT 0       -- summons since the last Legendary
+    pet_pity INTEGER NOT NULL DEFAULT 0,      -- summons since the last Legendary
+    last_seen TEXT NOT NULL DEFAULT ''        -- for "online now" in Discover
 );
 
 CREATE TABLE IF NOT EXISTS user_pets (
@@ -103,7 +104,11 @@ CREATE TABLE IF NOT EXISTS raids (
     tv TEXT NOT NULL DEFAULT '',
     note TEXT NOT NULL DEFAULT '',
     tickets_url TEXT NOT NULL DEFAULT '',
-    synced_at TEXT NOT NULL
+    synced_at TEXT NOT NULL,
+    -- Raids students create themselves (ids start at CUSTOM_RAID_ID_START so they never collide with SoonerSports ids)
+    creator_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+    place_key TEXT NOT NULL DEFAULT '',       -- campus place for the map (a dungeon or venue key)
+    boosted_until TEXT NOT NULL DEFAULT ''    -- pinned to the top of the Raids tab until this time
 );
 
 CREATE TABLE IF NOT EXISTS raid_checkins (

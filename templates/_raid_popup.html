@@ -1,0 +1,16 @@
+{% from "_macros.html" import player_grid %}
+<div class="spot-popup">
+  <strong>{{ place_name }}</strong>
+  {% for r in raids %}
+    <div class="spot-popup-raid">
+      <div class="spot-popup-head">
+        {{ raid_icon(r, 28) }}
+        <div>
+          <a href="{{ url_for('raid_detail', raid_id=r.id) }}"><strong>{{ r.title }}</strong></a>
+          <span class="caption">{{ r.day | day_label }}, {{ r.time_text }}{% if r.boosted %} · <span class="joined">Boosted</span>{% endif %}</span>
+        </div>
+      </div>
+      {{ player_grid(going.get(r.id, []), "Nobody's going yet.") }}
+    </div>
+  {% endfor %}
+</div>

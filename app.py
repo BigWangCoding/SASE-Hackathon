@@ -1,4 +1,6 @@
 """Sooner Buddies: a campus RPG for OU students where studying together levels you up."""
+import hashlib
+import hmac
 import json
 import os
 import re
@@ -7,11 +9,14 @@ from collections import Counter
 from datetime import datetime, timedelta
 from functools import wraps
 
+import segno
 from flask import Flask, abort, flash, g, redirect, render_template, request, session, url_for
 from markupsafe import Markup, escape
 from werkzeug.security import check_password_hash, generate_password_hash
 
 import avatar
+import campus
+import icons
 import pets
 import raids as raid_feed
 
@@ -39,6 +44,14 @@ MAX_SESSION_MINUTES = 240  # a forgotten session can't farm rewards forever
 RAID_CC = 50
 RAID_XP = 100
 RAID_SYNC_HOURS = 6  # how stale the SoonerSports.com data can get before the Raids page re-fetches it
+
+# Raids students create. Boosting pins one to the top of the Raids tab.
+RAID_CATEGORIES = ["Tailgate", "Watch party", "Club event", "Study jam", "Pickup game", "Other"]
+CUSTOM_RAID_ID_START = 1_000_000_000  # SoonerSports ids are far below this, so the two never collide
+BOOST_CC = 150
+BOOST_HOURS = 24
+
+ONLINE_MINUTES = 5  # "online" in Discover means seen within this many minutes
 # Speeds up the study clock for live demos: DEMO_TIME_SCALE=60 counts each second as a minute.
 TIME_SCALE = max(1, int(os.environ.get("DEMO_TIME_SCALE", "1")))
 
@@ -116,6 +129,12 @@ ADDED_COLUMNS = {
         ("title_kind", "TEXT NOT NULL DEFAULT ''"),
         ("active_pet", "TEXT NOT NULL DEFAULT ''"),
         ("pet_pity", "INTEGER NOT NULL DEFAULT 0"),
+        ("last_seen", "TEXT NOT NULL DEFAULT ''"),
+    ],
+    "raids": [
+        ("creator_id", "INTEGER REFERENCES users(id) ON DELETE CASCADE"),
+        ("place_key", "TEXT NOT NULL DEFAULT ''"),
+        ("boosted_until", "TEXT NOT NULL DEFAULT ''"),
     ],
 }
 
@@ -340,6 +359,47 @@ def who_is_studying():
     return {row["user_id"]: row for row in rows}
 
 
+def dungeon_players():
+    """Dungeon key -> users on a dungeon run there right now."""
+    players = {}
+    for row in get_db().execute(
+        "SELECT s.dungeon AS spot, u.* FROM study_sessions s JOIN users u ON u.id = s.user_id"
+        " WHERE s.ended_at IS NULL ORDER BY s.started_at"
+    ):
+        players.setdefault(row["spot"], []).append(row)
+    return players
+
+
+def raid_players():
+    """Raid id -> users going (in one of its raid parties) or already checked in."""
+    players = {}
+    for row in get_db().execute(
+        "SELECT x.raid_id AS raid, u.* FROM ("
+        "   SELECT p.raid_id, m.user_id FROM parties p JOIN party_members m ON m.party_id = p.id"
+        "   WHERE p.raid_id IS NOT NULL AND p.ends_at > ?"
+        "   UNION SELECT raid_id, user_id FROM raid_checkins"
+        " ) x JOIN users u ON u.id = x.user_id ORDER BY u.name",
+        (now(),),
+    ):
+        players.setdefault(row["raid"], []).append(row)
+    return players
+
+
+# Every campus place a raid can be held at: dungeon rooms with a fixed spot, plus athletics venues.
+CAMPUS_PLACES = {
+    **{key: DUNGEONS[key]["name"] for key in campus.DUNGEON_SPOTS},
+    **{key: venue["name"] for key, venue in campus.VENUES.items()},
+}
+
+
+def place_spot(key):
+    """(lat, lng) of a dungeon room or venue, or None."""
+    if key in campus.DUNGEON_SPOTS:
+        return campus.DUNGEON_SPOTS[key]
+    venue = campus.VENUES.get(key)
+    return venue["spot"] if venue else None
+
+
 def start_fight(dungeon, party_id=None):
     if g.fight:
         flash(f"You're already studying at {place(g.fight['dungeon'])['name']}. Finish that session first.", "error")
@@ -476,6 +536,21 @@ def pet_of(user):
 
 
 @app.template_global()
+def is_online(user):
+    return user["last_seen"] >= stamp(datetime.now() - timedelta(minutes=ONLINE_MINUTES))
+
+
+@app.template_global()
+def dungeon_icon(key, size=48):
+    return icons.dungeon_icon(key, place(key)["name"], size)
+
+
+@app.template_global()
+def raid_icon(raid, size=32):
+    return icons.raid_icon(raid["sport_slug"], raid["sport"], size)
+
+
+@app.template_global()
 def elapsed_seconds(ts):
     return max(0, int((datetime.now() - datetime.fromisoformat(ts)).total_seconds()))
 
@@ -488,10 +563,7 @@ def next_field():
 
 def back(default, **values):
     """Redirect to the form's `next` page if it's on this site, otherwise to `default`."""
-    target = request.form.get("next", "")
-    if target.startswith("/") and not target.startswith(("//", "/\\")):
-        return redirect(target)
-    return redirect(url_for(default, **values))
+    return redirect(safe_next(request.form.get("next")) or url_for(default, **values))
 
 
 @app.context_processor
@@ -526,13 +598,25 @@ def load_user():
         " (SELECT 1 FROM friendships b WHERE b.user_id = a.friend_id AND b.friend_id = a.user_id)",
         (user_id,),
     ).fetchone()[0]
+    # Note activity for "online now", at most once a minute.
+    if g.user["last_seen"] < stamp(datetime.now() - timedelta(minutes=1)):
+        db.execute("UPDATE users SET last_seen = ? WHERE id = ?", (now(), user_id))
+        db.commit()
+
+
+def safe_next(target):
+    """`target` if it's a path on this site (not an open redirect), else None."""
+    if target and target.startswith("/") and not target.startswith(("//", "/\\")):
+        return target
+    return None
 
 
 def login_required(view):
     @wraps(view)
     def wrapped(*args, **kwargs):
         if g.user is None:
-            return redirect(url_for("login"))
+            # Come back here after logging in, e.g. after scanning a dungeon's QR code.
+            return redirect(url_for("login", next=request.full_path.rstrip("?")))
         return view(*args, **kwargs)
     return wrapped
 
@@ -598,7 +682,7 @@ def login():
         if user and check_password_hash(user["password_hash"], form.get("password", "")):
             session.clear()
             session["user_id"] = user["id"]
-            return redirect(url_for("dashboard"))
+            return redirect(safe_next(request.args.get("next")) or url_for("dashboard"))
         flash("Wrong email or password.", "error")
     return render_template("login.html", form=form)
 
@@ -978,9 +1062,8 @@ def party_study(party_id):
 @app.route("/dungeons")
 @login_required
 def dungeon_list():
-    fighters = Counter(s["dungeon"] for s in who_is_studying().values())
     live = Counter(p["dungeon"] for p in open_parties() if p["live"])
-    return render_template("dungeons.html", fighters=fighters, live=live)
+    return render_template("dungeons.html", players=dungeon_players(), live=live)
 
 
 @app.post("/dungeons/<key>/enter")
@@ -1035,13 +1118,17 @@ def raid_info(row):
     """Raid row -> dict with display fields the templates need."""
     raid = dict(row)
     today = datetime.now().date().isoformat()
-    raid["title"] = f"{raid['sport']} {raid['at_vs']} {raid['opponent']}"
+    raid["custom"] = raid["creator_id"] is not None  # made by a student rather than from SoonerSports.com
+    raid["title"] = raid["opponent"] if raid["custom"] else f"{raid['sport']} {raid['at_vs']} {raid['opponent']}"
     raid["where"] = ", ".join(part for part in (raid["venue"], raid["city"]) if part) or "Location TBA"
-    raid["description"] = raid_feed.describe(raid)
+    raid["description"] = raid["note"] if raid["custom"] else raid_feed.describe(raid)
     raid["day"] = max(raid["starts_at"][:10], today)  # multi-day events still running show under today
     raid["is_today"] = raid["starts_at"][:10] <= today <= raid["ends_at"][:10]
+    raid["boosted"] = raid["boosted_until"] > now()
+    raid["spot_key"] = raid["place_key"] or campus.venue_for(raid["venue"])  # for the map; None if off campus
     slug = raid["sport_slug"]
-    raid["schedule_url"] = f"https://soonersports.com/sports/{slug}/schedule" if slug else "https://soonersports.com/calendar"
+    raid["schedule_url"] = (None if raid["custom"] else
+                            f"https://soonersports.com/sports/{slug}/schedule" if slug else "https://soonersports.com/calendar")
     return raid
 
 
@@ -1100,7 +1187,89 @@ def raid_list():
     my_raids = {row[0] for row in db.execute(
         "SELECT DISTINCT p.raid_id FROM parties p JOIN party_members m ON m.party_id = p.id"
         " WHERE m.user_id = ? AND p.raid_id IS NOT NULL", (g.user["id"],))}
-    return render_template("raids.html", raids=raids, sports=sports, where=where, sport=sport, my_raids=my_raids)
+    return render_template(
+        "raids.html",
+        boosted=[r for r in raids if r["boosted"]],
+        raids=[r for r in raids if not r["boosted"]],
+        players=raid_players(),
+        sports=sports, where=where, sport=sport, my_raids=my_raids,
+    )
+
+
+@app.route("/raids/new", methods=["GET", "POST"])
+@login_required
+def raid_new():
+    """Students can create their own raids: tailgates, watch parties, club events..."""
+    form = request.form
+    if request.method == "POST":
+        name = form.get("name", "").strip()[:60]
+        category, place_key = form.get("category"), form.get("place")
+        hours_long = form.get("hours", type=int)
+        try:
+            start = datetime.fromisoformat(form.get("starts_at", ""))
+        except ValueError:
+            start = None
+        error = None
+        if not name:
+            error = "Give your raid a name."
+        elif category not in RAID_CATEGORIES or place_key not in CAMPUS_PLACES:
+            error = "Pick a type of raid and a place on campus."
+        elif start is None or not (datetime.now() - timedelta(minutes=10) <= start <= datetime.now() + timedelta(days=30)):
+            error = "Pick a start time within the next 30 days."
+        elif hours_long not in range(1, 7):
+            error = "Raids can last 1 to 6 hours."
+        if error:
+            flash(error, "error")
+        else:
+            start = max(start, datetime.now()).replace(second=0, microsecond=0)
+            end = start + timedelta(hours=hours_long)
+            db = get_db()
+            raid_id = max(CUSTOM_RAID_ID_START, (db.execute("SELECT MAX(id) FROM raids").fetchone()[0] or 0) + 1)
+            db.execute(
+                "INSERT INTO raids (id, sport, sport_slug, opponent, at_vs, home_away, venue, city, starts_at, ends_at,"
+                " time_text, tv, note, tickets_url, synced_at, creator_id, place_key)"
+                " VALUES (?, ?, 'custom', ?, '', 'H', ?, 'Norman, Okla.', ?, ?, ?, '', ?, '', ?, ?, ?)",
+                (raid_id, category, name, CAMPUS_PLACES[place_key], stamp(start), stamp(end), clock(stamp(start)),
+                 form.get("description", "").strip()[:300], now(), g.user["id"], place_key),
+            )
+            # The host's own raid party, so people can join right away.
+            cur = db.execute(
+                "INSERT INTO parties (leader_id, name, course, dungeon, spot, description, capacity, starts_at, ends_at, raid_id)"
+                " VALUES (?, ?, ?, 'other', ?, '', 20, ?, ?, ?)",
+                (g.user["id"], f"{g.user['name'].split()[0]}'s crew", category, CAMPUS_PLACES[place_key],
+                 stamp(start), stamp(end), raid_id),
+            )
+            db.execute("INSERT INTO party_members (party_id, user_id, joined_at) VALUES (?, ?, ?)",
+                       (cur.lastrowid, g.user["id"], now()))
+            db.commit()
+            flash(f"Raid created. Boost it for {BOOST_CC} CC to pin it to the top of the Raids tab.")
+            return redirect(url_for("raid_detail", raid_id=raid_id))
+    return render_template("raid_new.html", form=form, categories=RAID_CATEGORIES, places=CAMPUS_PLACES)
+
+
+@app.post("/raids/<int:raid_id>/boost")
+@login_required
+def raid_boost(raid_id):
+    """The raid's creator spends CC to pin it to the top of the Raids tab for a day (stacks)."""
+    raid = get_raid(raid_id)
+    if raid["creator_id"] != g.user["id"]:
+        abort(403)
+    ends = datetime.fromisoformat(raid["ends_at"])
+    current = datetime.fromisoformat(raid["boosted_until"]) if raid["boosted"] else datetime.now()
+    if ends <= datetime.now():
+        flash("That raid is over.", "error")
+    elif current >= ends:
+        flash("Your raid is already boosted until it ends.")
+    elif g.user["cc"] < BOOST_CC:
+        flash(f"Boosting costs {BOOST_CC} CC. Clear a dungeon to earn more.", "error")
+    else:
+        until = min(current + timedelta(hours=BOOST_HOURS), ends)
+        db = get_db()
+        db.execute("UPDATE raids SET boosted_until = ? WHERE id = ?", (stamp(until), raid_id))
+        db.execute("UPDATE users SET cc = cc - ? WHERE id = ?", (BOOST_CC, g.user["id"]))
+        db.commit()
+        flash(f"Boosted! {raid['title']} is pinned to the top of the Raids tab until {when(stamp(until))}.")
+    return redirect(url_for("raid_detail", raid_id=raid_id))
 
 
 @app.route("/raids/<int:raid_id>")
@@ -1118,11 +1287,16 @@ def raid_detail(raid_id):
     return render_template(
         "raid_detail.html",
         raid=raid,
+        creator=get_user(raid["creator_id"]) if raid["custom"] else None,
         parties=attach_members([party_info(row) for row in rows]),
+        players=raid_players().get(raid_id, []),
         my_party=raid_party_for(raid_id),
         checked_in=checked_in(raid_id),
         suggested_meet=suggested_meet,
         raid_reward=(RAID_CC, RAID_XP),
+        boost_cc=BOOST_CC,
+        boost_hours=BOOST_HOURS,
+        now_stamp=now(),
     )
 
 
@@ -1166,16 +1340,23 @@ def raid_party_new(raid_id):
 @app.post("/raids/<int:raid_id>/checkin")
 @login_required
 def raid_checkin(raid_id):
-    raid = get_raid(raid_id)
+    check_in(get_raid(raid_id))
+    return back("raid_detail", raid_id=raid_id)
+
+
+def check_in(raid, via_qr=False):
+    """Check the current user in at a raid. Scanning the raid's QR code works without a party
+    (being there is the proof); the button is for raid party members."""
+    raid_id = raid["id"]
     party = raid_party_for(raid_id)
     if not raid["is_today"]:
         flash("Check-in opens on the day of the event.", "error")
-    elif party is None:
-        flash("Join or start a raid party for this event first.", "error")
+    elif party is None and not via_qr:
+        flash("Join or start a raid party for this event first, or scan the raid's QR code there.", "error")
     elif checked_in(raid_id):
         flash("You already checked in at this raid.")
     else:
-        bonus = party_size(party["id"]) >= 2
+        bonus = party is not None and party_size(party["id"]) >= 2
         cc, xp = raid_rewards(bonus, g.user["active_pet"])
         db = get_db()
         db.execute(
@@ -1188,7 +1369,134 @@ def raid_checkin(raid_id):
         db.commit()
         flash(f"Raid joined: {raid['title']}. Loot: +{cc} CC, +{xp} XP{bonus_note(bonus, g.user['active_pet'])}.")
         flash_level_up(g.user["xp"], xp)
-    return back("raid_detail", raid_id=raid_id)
+
+
+# --- QR codes ---------------------------------------------------------------
+# Each dungeon room and raid has a QR code to post at the spot. Scanning it starts a dungeon run
+# or checks you in at the raid. The token stops people from typing in made-up scan links.
+
+def qr_token(kind, ident):
+    message = f"{kind}:{ident}".encode()
+    return hmac.new(app.config["SECRET_KEY"].encode(), message, hashlib.sha256).hexdigest()[:16]
+
+
+@app.template_global()
+def qr_svg(kind, ident, scale=4):
+    url = url_for("scan_code", kind=kind, ident=ident, t=qr_token(kind, ident), _external=True)
+    return Markup(segno.make(url, error="m").svg_inline(scale=scale, dark="#2a1c18", light="#fffdf6"))
+
+
+@app.route("/qr/<kind>/<ident>")
+@login_required
+def qr_page(kind, ident):
+    """A printable QR code to post at a dungeon room or raid."""
+    if kind == "dungeon" and ident in campus.DUNGEON_SPOTS:
+        title, action = place(ident)["name"], "start a dungeon run here"
+    elif kind == "raid" and ident.isdigit():
+        title, action = get_raid(int(ident))["title"], "check in at this raid"
+    else:
+        abort(404)
+    return render_template("qr.html", kind=kind, ident=ident, title=title, action=action)
+
+
+@app.route("/scan")
+@login_required
+def scanner():
+    return render_template("scan.html")
+
+
+@app.route("/scan/<kind>/<ident>")
+@login_required
+def scan_code(kind, ident):
+    """Where a scanned QR code lands."""
+    if not hmac.compare_digest(request.args.get("t", ""), qr_token(kind, ident)):
+        flash("That QR code isn't a valid Sooner Buddies code.", "error")
+        return redirect(url_for("scanner"))
+    if kind == "dungeon" and ident in DUNGEONS:
+        if g.fight and g.fight["dungeon"] == ident:
+            flash(f"You're already on a dungeon run in {place(ident)['name']}.")
+        else:
+            start_fight(ident)
+        return redirect(url_for("dungeon_list"))
+    if kind == "raid" and ident.isdigit():
+        raid = get_raid(int(ident))
+        check_in(raid, via_qr=True)
+        return redirect(url_for("raid_detail", raid_id=raid["id"]))
+    abort(404)
+
+
+# --- Campus map -------------------------------------------------------------
+
+@app.route("/map")
+@login_required
+def campus_map():
+    in_dungeon = dungeon_players()
+    markers = []
+    for key, (lat, lng) in campus.DUNGEON_SPOTS.items():
+        people = in_dungeon.get(key, [])
+        markers.append({
+            "kind": "dungeon", "lat": lat, "lng": lng, "count": len(people), "name": place(key)["name"],
+            "icon": str(dungeon_icon(key, 40)),
+            "popup": render_template("_spot_popup.html", kind="dungeon", key=key, title=place(key)["name"],
+                                     subtitle=place(key)["kind"], people=people),
+        })
+    # Raids in the next week at a campus place, one marker per place.
+    going = raid_players()
+    week = get_db().execute(
+        "SELECT * FROM raids WHERE ends_at > ? AND starts_at < ? ORDER BY starts_at",
+        (now(), stamp(datetime.now() + timedelta(days=7))),
+    )
+    by_place = {}
+    for raid in map(raid_info, week):
+        if raid["spot_key"] and place_spot(raid["spot_key"]):
+            by_place.setdefault(raid["spot_key"], []).append(raid)
+    for key, raids_here in by_place.items():
+        lat, lng = place_spot(key)
+        if key in campus.DUNGEON_SPOTS:
+            lat += 0.00028  # sit just above the dungeon room's own marker
+        raids_here.sort(key=lambda r: (not r["boosted"], r["starts_at"]))
+        markers.append({
+            "kind": "raid", "lat": lat, "lng": lng, "name": CAMPUS_PLACES[key],
+            "count": sum(len(going.get(r["id"], [])) for r in raids_here),
+            "icon": str(raid_icon(raids_here[0], 24)),
+            "popup": render_template("_raid_popup.html", place_name=CAMPUS_PLACES[key], raids=raids_here, going=going),
+        })
+    return render_template("map.html", markers=markers, outline=campus.OUTLINE, center=campus.CENTER)
+
+
+# --- Discover ---------------------------------------------------------------
+
+GENERIC_MAJOR_WORDS = {"and", "of", "the", "in", "science", "sciences", "studies", "arts", "&"}
+
+
+def major_words(major):
+    return {word for word in major.lower().split() if word not in GENERIC_MAJOR_WORDS}
+
+
+@app.route("/discover")
+@login_required
+def discover():
+    tab = request.args.get("tab", "online")
+    me = g.user
+    others = get_db().execute("SELECT * FROM users WHERE id != ? ORDER BY name", (me["id"],)).fetchall()
+    if tab == "major":
+        mine, found = major_words(me["major"]), []
+        for u in others:
+            if u["major"].strip().lower() == me["major"].strip().lower():
+                found.append((0, u, "Same major"))
+            elif mine & major_words(u["major"]):
+                found.append((1, u, f"Also studies {u['major']}"))
+        players = [(u, note) for _, u, note in sorted(found, key=lambda f: f[0])]
+    elif tab == "year":
+        my_year = YEARS.index(me["year"]) if me["year"] in YEARS else 0
+        found = [(abs(YEARS.index(u["year"]) - my_year), u) for u in others if u["year"] in YEARS]
+        players = [(u, "Same year" if gap == 0 else u["year"]) for gap, u in sorted(found, key=lambda f: f[0]) if gap <= 1]
+    else:
+        tab = "online"
+        online = sorted((u for u in others if is_online(u)), key=lambda u: u["last_seen"], reverse=True)
+        players = [(u, f"{u['major']} · {u['year']}") for u in online]
+    return render_template("discover.html", tab=tab, players=players, relations=friend_relations(),
+                           studying=who_is_studying())
 
 
 # --- Clans ------------------------------------------------------------------

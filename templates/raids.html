@@ -1,14 +1,50 @@
 {% extends "base.html" %}
+{% from "_macros.html" import player_grid %}
 {% block title %}Raids{% endblock %}
+
+{% macro raid_row(r) %}
+  {% set people = players.get(r.id, []) %}
+  <div class="row spot-row{% if r.boosted %} boosted{% endif %}">
+    <details class="peek">
+      <summary title="See who's going">
+        {{ raid_icon(r, 40) }}
+        <span class="map-count">{{ people | length }}</span>
+      </summary>
+      <div class="peek-panel">
+        <strong>{{ r.title }}</strong>
+        <span class="caption">{{ people | length }} going or checked in</span>
+        {{ player_grid(people, "Nobody's going yet.") }}
+      </div>
+    </details>
+    <a class="grow raid-link" href="{{ url_for('raid_detail', raid_id=r.id) }}">
+      <span class="code">{{ r.sport }}</span>
+      <strong>{% if r.custom %}{{ r.opponent }}{% else %}{{ r.at_vs }} {{ r.opponent }}{% endif %}</strong>
+      <span class="caption">
+        {% if r.boosted %}<span class="joined">Boosted</span> · {% endif %}
+        {% if r.custom %}Student raid · {% endif %}{{ r.where }}{% if r.tv %} · TV: {{ r.tv }}{% endif %}{% if r.note and not r.custom %} · {{ r.note }}{% endif %}
+      </span>
+    </a>
+    <span class="row-end">
+      {% if r.boosted %}{{ r.day | day_label }}, {% endif %}{{ r.time_text }}
+      <span class="caption">
+        {% if r.id in my_raids %}<span class="joined">you're going</span>
+        {% elif r.party_count %}{{ r.party_count }} raid part{{ 'y' if r.party_count == 1 else 'ies' }}
+        {% else %}{{ "Home" if r.home_away == "H" else "Away" if r.home_away == "A" else "Neutral site" }}{% endif %}
+      </span>
+    </span>
+  </div>
+{% endmacro %}
+
 {% block content %}
 <div class="page-head">
   <div>
     <h1>Raids</h1>
     <p class="caption">
-      Raids are OU games and events from the SoonerSports.com calendar. Form a raid party, go together (or host a watch party),
-      and check in on game day for loot.
+      Raids are OU games from the SoonerSports.com calendar, plus events students create. Form a raid party, go together
+      (or host a watch party), and check in on game day for loot. Click a raid's icon to see who's going.
     </p>
   </div>
+  <a class="btn" href="{{ url_for('raid_new') }}">Create a raid</a>
 </div>
 
 <nav class="tabs">
@@ -18,39 +54,28 @@
 </nav>
 <form class="inline-form" method="get" style="margin: 12px 0 8px">
   {% if where != 'all' %}<input type="hidden" name="where" value="{{ where }}">{% endif %}
-  <select name="sport" aria-label="Sport" onchange="this.form.submit()">
-    <option value="">All sports</option>
+  <select name="sport" aria-label="Sport or raid type" onchange="this.form.submit()">
+    <option value="">All sports and events</option>
     {% for s in sports %}<option {% if s == sport %}selected{% endif %}>{{ s }}</option>{% endfor %}
   </select>
   <noscript><button class="btn quiet small" type="submit">Filter</button></noscript>
 </form>
 
+{% if boosted %}
+  <h2>Boosted</h2>
+  <div class="rows">{% for r in boosted %}{{ raid_row(r) }}{% endfor %}</div>
+{% endif %}
+
 {% for day, events in raids | groupby("day") %}
   <h2>{{ day | day_label }}</h2>
-  <div class="rows">
-    {% for r in events %}
-      <a class="row" href="{{ url_for('raid_detail', raid_id=r.id) }}">
-        <span class="code">{{ r.sport }}</span>
-        <span class="grow">
-          <strong>{{ r.at_vs }} {{ r.opponent }}</strong>
-          <span class="caption">{{ r.where }}{% if r.tv %} · TV: {{ r.tv }}{% endif %}{% if r.note %} · {{ r.note }}{% endif %}</span>
-        </span>
-        <span class="row-end">
-          {{ r.time_text }}
-          <span class="caption">
-            {% if r.id in my_raids %}<span class="joined">you're going</span>
-            {% elif r.party_count %}{{ r.party_count }} raid part{{ 'y' if r.party_count == 1 else 'ies' }}
-            {% else %}{{ "Home" if r.home_away == "H" else "Away" if r.home_away == "A" else "Neutral site" }}{% endif %}
-          </span>
-        </span>
-      </a>
-    {% endfor %}
-  </div>
+  <div class="rows">{% for r in events %}{{ raid_row(r) }}{% endfor %}</div>
 {% else %}
-  <p class="empty">
-    No upcoming events{% if sport or where != 'all' %} match these filters{% endif %}.
-    If this stays empty, SoonerSports.com may be unreachable; try again later or run <code>python raids.py</code>.
-  </p>
+  {% if not boosted %}
+    <p class="empty">
+      No upcoming events{% if sport or where != 'all' %} match these filters{% endif %}.
+      If this stays empty, SoonerSports.com may be unreachable; try again later or run <code>python raids.py</code>.
+    </p>
+  {% endif %}
 {% endfor %}
 
 <p class="caption" style="margin-top: 32px">

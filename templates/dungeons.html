@@ -1,34 +1,44 @@
 {% extends "base.html" %}
+{% from "_macros.html" import player_grid %}
 {% block title %}Dungeon rooms{% endblock %}
 {% block content %}
 <h1>Dungeon rooms</h1>
 <p class="lead">
-  Dungeon rooms are real study spots on campus. Enter one to start a dungeon run (a study session).
-  You earn {{ rewards.cc }} CC and {{ rewards.xp }} XP of loot per minute until you clear it, up to
+  Dungeon rooms are real study spots on campus. Enter one, or scan the QR code posted there, to start a dungeon run
+  (a study session). You earn {{ rewards.cc }} CC and {{ rewards.xp }} XP of loot per minute until you clear it, up to
   {{ rewards.max_hours }} hours. Run it from a <a href="{{ url_for('party_list') }}">party</a> for {{ rewards.bonus }}% more.
 </p>
+<p class="caption">Click a dungeon room's picture to see who's inside. <a href="{{ url_for('campus_map') }}">See them all on the map.</a></p>
 
-<div class="table-wrap">
-  <table>
-    <thead>
-      <tr><th>Dungeon room</th><th>Type</th><th class="num">Adventurers inside</th><th class="num">Parties here</th><th></th></tr>
-    </thead>
-    <tbody>
-      {% for key, d in dungeons.items() %}
-        <tr>
-          <td><strong>{{ d.name }}</strong><br><span class="caption">{{ d.blurb }}</span></td>
-          <td>{{ d.kind }}</td>
-          <td class="num">{% if fighters[key] %}<span class="live">{{ fighters[key] }}</span>{% else %}0{% endif %}</td>
-          <td class="num">{{ live[key] }}</td>
-          <td class="num">
-            <form method="post" action="{{ url_for('enter_dungeon', key=key) }}">
-              {{ next_field() }}
-              <button class="btn quiet small" type="submit" {% if g.fight %}disabled title="Clear your current dungeon run first"{% endif %}>Enter</button>
-            </form>
-          </td>
-        </tr>
-      {% endfor %}
-    </tbody>
-  </table>
+<div class="rows">
+  {% for key, d in dungeons.items() %}
+    {% set people = players.get(key, []) %}
+    <div class="row spot-row" id="{{ key }}">
+      <details class="peek">
+        <summary title="See who's inside {{ d.name }}">
+          {{ dungeon_icon(key, 56) }}
+          <span class="map-count">{{ people | length }}</span>
+        </summary>
+        <div class="peek-panel">
+          <strong>{{ d.name }}</strong>
+          <span class="caption">{{ people | length }} inside right now</span>
+          {{ player_grid(people, "Nobody's on a dungeon run here right now.") }}
+        </div>
+      </details>
+      <div class="grow">
+        <strong>{{ d.name }}</strong>
+        <span class="caption">{{ d.kind }} · {{ d.blurb }}</span>
+        <span class="caption">
+          {% if people %}<span class="live">{{ people | length }} inside</span>{% else %}Nobody inside{% endif %}
+          · {{ live[key] }} part{{ 'y' if live[key] == 1 else 'ies' }} here
+          {% if key != "other" %}· <a href="{{ url_for('qr_page', kind='dungeon', ident=key) }}">QR code</a>{% endif %}
+        </span>
+      </div>
+      <form method="post" action="{{ url_for('enter_dungeon', key=key) }}">
+        {{ next_field() }}
+        <button class="btn quiet small" type="submit" {% if g.fight %}disabled title="Clear your current dungeon run first"{% endif %}>Enter</button>
+      </form>
+    </div>
+  {% endfor %}
 </div>
 {% endblock %}

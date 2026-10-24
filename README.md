@@ -32,10 +32,20 @@ go on **raids** (OU games and events), and earn **Crimson Crystals (CC)** and **
   before you buy it.
 - **Parties:** create or join a study party for a class at a dungeon, now or later. Classmates
   in the same class (or department) see your party first.
-- **Dungeon rooms:** Bizzell, the Union, computer labs, and more. Start a dungeon run solo or
-  with your party, then clear it to collect loot:
+- **Dungeon rooms:** Bizzell, the Union, computer labs, and more, each with an illustrated icon of
+  the spot. Click the icon to see who's inside (avatars with their pets). Start a dungeon run solo
+  or with your party, then clear it to collect loot:
   - 1 CC + 2 XP per minute, capped at 4 hours per session
   - +50% when studying with a party of 2+
+- **QR codes:** every dungeon room and raid has a printable QR code (`/qr/...`) to post at the spot.
+  Scanning a dungeon's code starts a dungeon run there. Scanning a raid's code on game day checks
+  you in, even without a raid party. Use a phone camera or the in-app **Scan** page. Each code
+  carries a signed token, so scan links can't be made up.
+- **Campus map:** the real OU campus (OpenStreetMap) with its boundary outlined. Each dungeon room
+  has a marker with how many players are inside. Smaller markers show raids on campus this week
+  with how many are going. Click a marker to see the players and their pets.
+- **Discover:** tabs for players online now (active in the last 5 minutes), similar majors, and
+  similar years, plus your friends list.
 - **Stats:** level, CC, time studying, raids attended, friends, clans, and recent dungeon runs.
 - **Friends:** send and accept friend requests, and see when friends are studying.
   The app suggests classmates who share your classes.
@@ -50,7 +60,11 @@ go on **raids** (OU games and events), and earn **Crimson Crystals (CC)** and **
   with time, location, TV, ticket links, and a short description. Students start or join a
   **raid party** for an event, choosing a meeting spot and time. For away games this is a watch
   party. On game day, raid party members check in for 50 CC + 100 XP (+50% with 2+ in the party),
-  which also counts toward their raids stat.
+  which also counts toward their raids stat. Click a raid's icon to see who's going.
+- **Student raids and boosting:** anyone can create a raid at a campus place, such as a tailgate,
+  watch party, club event, or study jam. They lead its first raid party. The creator can spend
+  150 CC to **boost** it, which pins it to the top of the Raids tab for 24 hours. Boosts stack up
+  to the end of the raid.
 
 ## Run it
 
@@ -79,14 +93,17 @@ To let any email sign up while testing, set `EMAIL_DOMAIN = ""` in `app.py`.
 
 ## How it's built
 
-Flask + SQLite, server-rendered HTML. No build step, and the only JavaScript is the live
-session timer.
+Flask + SQLite, server-rendered HTML, no build step. JavaScript is limited to the session timer,
+chat polling, the map (Leaflet), and the QR scanner (jsQR). Both libraries are copied into
+`static/vendor/` with their licenses; QR codes are made server-side with `segno`.
 
 | File | Purpose |
 | --- | --- |
-| `app.py` | Routes and game rules: rewards, levels, parties, dungeons, clans, friends, leaderboards |
+| `app.py` | Routes and game rules: rewards, levels, parties, dungeons, raids, QR, map, clans, friends, leaderboards |
 | `avatar.py` | Avatar shop items and the SVG avatar renderer |
 | `pets.py` | Pet catalog, summon odds, and boosts |
+| `icons.py` | Dungeon room illustrations and raid icons |
+| `campus.py` | Campus outline and building coordinates for the map (from OpenStreetMap) |
 | `raids.py` | Pulls events from the SoonerSports.com calendar feed (`python raids.py` syncs by hand) |
 | `schema.sql` | Database tables, created automatically on startup |
 | `seed.py` | Demo data for presentations |
@@ -95,6 +112,13 @@ session timer.
 
 Data is stored in `soonerbuddies.db` (git-ignored). The list of dungeons is `DUNGEONS` in
 `app.py`, and reward rates are the constants at the top of the same file.
+
+**Dungeon photos:** the icons are drawings. To use a real photo of a spot, save it as
+`static/dungeons/<key>.jpg` (or `.png`/`.webp`), for example `static/dungeons/bizzell.jpg`. It
+replaces the drawing everywhere, including the map. Use photos you have rights to.
+
+The map loads tiles from OpenStreetMap, so it needs internet. Building positions and the campus
+outline are saved in `campus.py`, so no geocoding happens at runtime.
 
 Raids come from the JSON feed behind soonersports.com/calendar
 (`/api/v2/Calendar/from/<date>/to/<date>`). The Raids page re-syncs the next 60 days when its
@@ -105,7 +129,8 @@ file to update.
 ## Next steps
 
 - Add non-athletics campus events from OU Engage as raids
-- Verify raid check-ins by location so rewards can't be faked
+- Rotating QR codes on a screen at each spot. Today's printed codes don't change, so a photo of one
+  could be shared. Anyone signed in can also open a printable code.
 - Verify study sessions (e.g. location check-in) so rewards can't be faked
 - Email verification for `@ou.edu` accounts
 - CSRF tokens and a real `SECRET_KEY` before deploying publicly

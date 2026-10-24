@@ -9,6 +9,30 @@
   </div>
 {% endmacro %}
 
+{# A player's head-and-shoulders avatar with their active pet in a small badge on the corner. #}
+{% macro avatar_pet(user, size=40) %}
+  {% set pet = pet_of(user) %}
+  <span class="avatar-pet" style="--size: {{ size }}px">
+    {{ avatar_svg(user, size, bust=True) }}
+    {% if pet %}<span class="pet-badge" title="{{ pet.name }}">{{ pet.emoji }}</span>{% endif %}
+  </span>
+{% endmacro %}
+
+{# Players inside a dungeon room or going to a raid: a grid of avatars with pets. #}
+{% macro player_grid(people, empty="Nobody here yet.") %}
+  {% if people %}
+    <div class="player-grid">
+      {% for u in people %}
+        <a href="{{ url_for('player', user_id=u.id) }}" title="{{ u.name }}">
+          {{ avatar_pet(u, 44) }}<span>{{ u.name.split()[0] }}</span>
+        </a>
+      {% endfor %}
+    </div>
+  {% else %}
+    <p class="caption">{{ empty }}</p>
+  {% endif %}
+{% endmacro %}
+
 {% macro course_tags(courses) %}
   <ul class="tags">{% for c in courses %}<li>{{ c }}</li>{% endfor %}</ul>
 {% endmacro %}
@@ -31,7 +55,7 @@
 {# A player with their avatar. Anything inside {% call %} shows on the right (e.g. buttons). #}
 {% macro player_row(u, note="", studying=False) %}
   <div class="row">
-    <a href="{{ url_for('player', user_id=u.id) }}">{{ avatar_svg(u, 40, bust=True) }}</a>
+    <a href="{{ url_for('player', user_id=u.id) }}">{{ avatar_pet(u, 40) }}</a>
     <div class="grow">
       <a href="{{ url_for('player', user_id=u.id) }}"><strong>{{ display_name(u) }}</strong></a>
       <span class="caption">{{ note or (u.major ~ " · level " ~ level_info(u.xp).level) }}</span>

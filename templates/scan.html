@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+{% block title %}Scan{% endblock %}
+{% block content %}
+<div class="form">
+  <h1>Scan a QR code</h1>
+  <p class="caption">
+    Point your camera at the QR code posted in a dungeon room or at a raid. A dungeon code starts your dungeon run;
+    a raid code checks you in. Your phone's own camera app works too.
+  </p>
+  <div class="scanner">
+    <video id="camera" playsinline muted></video>
+    <canvas id="frame" hidden></canvas>
+  </div>
+  <p id="scan-status" class="caption">Starting the camera…</p>
+  <button id="start" class="btn" type="button" hidden>Start camera</button>
+</div>
+
+<script src="{{ url_for('static', filename='vendor/jsQR.js') }}"></script>
+<script>
+  const video = document.getElementById("camera");
+  const canvas = document.getElementById("frame");
+  const status = document.getElementById("scan-status");
+  const startButton = document.getElementById("start");
+
+  async function start() {
+    startButton.hidden = true;
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
+      video.srcObject = stream;
+      await video.play();
+      status.textContent = "Looking for a QR code…";
+      requestAnimationFrame(scan);
+    } catch (error) {
+      status.textContent = "Couldn't open the camera. Allow camera access (the site must be on https or localhost), or use your phone's camera app.";
+      startButton.hidden = false;
+    }
+  }
+
+  function scan() {
+    if (video.readyState === video.HAVE_ENOUGH_DATA) {
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      const context = canvas.getContext("2d", { willReadFrequently: true });
+      context.drawImage(video, 0, 0, canvas.width, canvas.height);
+      const code = jsQR(context.getImageData(0, 0, canvas.width, canvas.height).data, canvas.width, canvas.height);
+      if (code) {
+        const url = new URL(code.data, location.href);
+        if (url.origin === location.origin && url.pathname.startsWith("/scan/")) {
+          status.textContent = "Got it!";
+          video.srcObject.getTracks().forEach((track) => track.stop());
+          location.href = url.pathname + url.search;
+          return;
+        }
+        status.textContent = "That isn't a Sooner Buddies dungeon or raid code.";
+      }
+    }
+    requestAnimationFrame(scan);
+  }
+
+  startButton.addEventListener("click", start);
+  start();
+</script>
+{% endblock %}

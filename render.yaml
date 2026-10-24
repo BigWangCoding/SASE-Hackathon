@@ -2,7 +2,7 @@
 # In Render: New + -> Blueprint -> pick this repo. Render reads this file and asks for DATABASE_URL.
 services:
   - type: web
-    name: sooner-buddies
+    name: SoonerBuddies
     runtime: python
     plan: free
     buildCommand: pip install -r requirements.txt

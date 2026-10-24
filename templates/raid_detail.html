@@ -1,0 +1,94 @@
+{% extends "base.html" %}
+{% block title %}{{ raid.title }}{% endblock %}
+{% block content %}
+<a class="back" href="{{ url_for('raid_list') }}">← Raids</a>
+<div class="split">
+  <section>
+    <p class="code">{{ raid.sport }}</p>
+    <h1>OU {{ raid.at_vs }} {{ raid.opponent }}</h1>
+    <p class="lead">
+      {{ raid.day | day_label }} · {{ raid.time_text }}<br>
+      {{ raid.where }}
+    </p>
+    <p>{{ raid.description }}</p>
+
+    <div class="table-wrap">
+      <table class="facts">
+        <tbody>
+          <tr><td>When</td><td>{{ raid.starts_at[:10] | day_label }}{% if raid.ends_at[:10] != raid.starts_at[:10] %} to {{ raid.ends_at[:10] | day_label }}{% endif %}, {{ raid.time_text }}</td></tr>
+          <tr><td>Where</td><td>{{ raid.where }}</td></tr>
+          <tr><td>Home or away</td><td>{{ "Home" if raid.home_away == "H" else "Away" if raid.home_away == "A" else "Neutral site" }}</td></tr>
+          {% if raid.tv %}<tr><td>TV</td><td>{{ raid.tv }}</td></tr>{% endif %}
+          {% if raid.note %}<tr><td>Note</td><td>{{ raid.note }}</td></tr>{% endif %}
+          <tr><td>Links</td><td>
+            {% if raid.tickets_url %}<a href="{{ raid.tickets_url }}" rel="noopener" target="_blank">Tickets</a> · {% endif %}
+            <a href="{{ raid.schedule_url }}" rel="noopener" target="_blank">{{ raid.sport }} schedule on SoonerSports.com</a>
+          </td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h2>Check in</h2>
+    {% if checked_in %}
+      <p class="live">You checked in at this raid.</p>
+    {% elif raid.is_today and my_party %}
+      <form method="post" action="{{ url_for('raid_checkin', raid_id=raid.id) }}">
+        {{ next_field() }}
+        <button class="btn" type="submit">I'm here: check in</button>
+      </form>
+      <p class="caption">{{ raid_reward[0] }} CC and {{ raid_reward[1] }} XP, plus {{ rewards.bonus }}% if your party has 2+ members.</p>
+    {% else %}
+      <p class="caption">
+        On the day of the event, raid party members can check in for {{ raid_reward[0] }} CC and {{ raid_reward[1] }} XP
+        ({{ rewards.bonus }}% more with 2+ in the party), and it counts toward your raids.
+        {% if not my_party %}Join or start a raid party first.{% endif %}
+      </p>
+    {% endif %}
+  </section>
+
+  <section>
+    <h2>Raid parties</h2>
+    <div class="rows">
+      {% for p in parties %}
+        <a class="row" href="{{ url_for('party_detail', party_id=p.id) }}">
+          <span class="grow">
+            <strong>{{ p.name }}</strong>
+            <span class="caption">Meet at {{ p.spot }}, {{ p.starts_at | when }} · led by {{ p.leader_name }}</span>
+          </span>
+          <span class="avatar-stack">{% for m in p.members[:4] %}{{ avatar_svg(m, 28, bust=True) }}{% endfor %}</span>
+          <span class="row-end caption">
+            {{ p.member_count }} of {{ p.capacity }}
+            {% if my_party and my_party.id == p.id %}<span class="joined">you're in</span>{% endif %}
+          </span>
+        </a>
+      {% else %}
+        <p class="empty">No raid parties yet. Start the first one.</p>
+      {% endfor %}
+    </div>
+
+    {% if not my_party %}
+      <h2>Start a raid party</h2>
+      <form method="post" action="{{ url_for('raid_party_new', raid_id=raid.id) }}">
+        <label class="field"><span>Name</span>
+          <input name="name" maxlength="60" required placeholder="{{ 'Student section crew' if raid.home_away == 'H' else 'Union watch party' }}">
+        </label>
+        <label class="field"><span>Where to meet</span>
+          <input name="spot" maxlength="60" required placeholder="{{ 'Outside the stadium, Gate 7' if raid.home_away == 'H' else 'Oklahoma Memorial Union, 2nd floor TVs' }}">
+        </label>
+        <div class="form-row">
+          <label class="field"><span>Meet at <small>(blank means now)</small></span>
+            <input type="datetime-local" name="meet_at" value="{{ suggested_meet }}">
+          </label>
+          <label class="field"><span>Max people</span>
+            <input type="number" name="capacity" min="2" max="20" value="8" required>
+          </label>
+        </div>
+        <label class="field"><span>Details <small>(optional)</small></span>
+          <input name="description" maxlength="200" placeholder="Wear crimson. We're tailgating first.">
+        </label>
+        <button class="btn" type="submit">Post raid party</button>
+      </form>
+    {% endif %}
+  </section>
+</div>
+{% endblock %}

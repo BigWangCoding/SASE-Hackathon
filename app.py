@@ -12,6 +12,7 @@ from markupsafe import Markup, escape
 from werkzeug.security import check_password_hash, generate_password_hash
 
 import avatar
+import raids as raid_feed
 
 app = Flask(__name__)
 app.config["SECRET_KEY"] = os.environ.get("SECRET_KEY", "dev-only-change-me")
@@ -29,6 +30,11 @@ CC_PER_MINUTE = 1
 XP_PER_MINUTE = 2
 PARTY_BONUS = 1.5  # when studying with a party of 2+ members
 MAX_SESSION_MINUTES = 240  # a forgotten session can't farm rewards forever
+
+# Checking in at a raid (an OU athletics event) earns a flat reward, with the same party bonus.
+RAID_CC = 50
+RAID_XP = 100
+RAID_SYNC_HOURS = 6  # how stale the SoonerSports.com data can get before the Raids page re-fetches it
 # Speeds up the study clock for live demos: DEMO_TIME_SCALE=60 counts each second as a minute.
 TIME_SCALE = max(1, int(os.environ.get("DEMO_TIME_SCALE", "1")))
 
@@ -98,8 +104,13 @@ def close_db(exc):
 
 
 def init_db():
+    db = get_db()
     with app.open_resource("schema.sql") as f:
-        get_db().executescript(f.read().decode())
+        db.executescript(f.read().decode())
+    # Databases created before raid parties existed are missing this column.
+    if "raid_id" not in {row["name"] for row in db.execute("PRAGMA table_info(parties)")}:
+        db.execute("ALTER TABLE parties ADD COLUMN raid_id INTEGER REFERENCES raids(id)")
+        db.commit()
 
 
 with app.app_context():
@@ -141,6 +152,18 @@ def fight_rewards(minutes, party_bonus):
     """(CC, XP) earned for a study session."""
     multiplier = PARTY_BONUS if party_bonus else 1
     return round(minutes * CC_PER_MINUTE * multiplier), round(minutes * XP_PER_MINUTE * multiplier)
+
+
+def raid_rewards(party_bonus):
+    """(CC, XP) earned for checking in at a raid."""
+    multiplier = PARTY_BONUS if party_bonus else 1
+    return round(RAID_CC * multiplier), round(RAID_XP * multiplier)
+
+
+def flash_level_up(old_xp, gained_xp):
+    new_level = level_info(old_xp + gained_xp)["level"]
+    if new_level > level_info(old_xp)["level"]:
+        flash(f"Level up! You're now level {new_level}.", "level")
 
 
 # --- Courses and matching ---------------------------------------------------
@@ -198,25 +221,30 @@ def find_matches(me, limit=8):
 # --- Parties ----------------------------------------------------------------
 
 PARTY_SELECT = """
-    SELECT p.*, u.name AS leader_name, COUNT(m.user_id) AS member_count
+    SELECT p.*, u.name AS leader_name, COUNT(m.user_id) AS member_count,
+           r.at_vs AS raid_at_vs, r.opponent AS raid_opponent
     FROM parties p
     JOIN users u ON u.id = p.leader_id
     LEFT JOIN party_members m ON m.party_id = p.id
+    LEFT JOIN raids r ON r.id = p.raid_id
 """
 
 
 def party_info(row):
-    """Party row -> dict with its dungeon details and whether it's meeting right now."""
+    """Party row -> dict with where it meets and whether it's meeting right now."""
     party = dict(row)
-    party["place"] = place(party["dungeon"])
+    if party["raid_id"]:
+        party["place"] = {"name": f"{party['raid_at_vs']} {party['raid_opponent']}", "kind": "Raid", "blurb": ""}
+    else:
+        party["place"] = place(party["dungeon"])
     party["live"] = party["starts_at"] <= now() < party["ends_at"]
     return party
 
 
 def open_parties(search=""):
-    """Parties that haven't ended, soonest first. `search` matches class, name, or dungeon."""
+    """Study parties that haven't ended, soonest first. `search` matches class, name, or dungeon."""
     rows = get_db().execute(
-        PARTY_SELECT + " WHERE p.ends_at > ? GROUP BY p.id ORDER BY p.starts_at", (now(),)
+        PARTY_SELECT + " WHERE p.ends_at > ? AND p.raid_id IS NULL GROUP BY p.id ORDER BY p.starts_at", (now(),)
     ).fetchall()
     parties = [party_info(row) for row in rows]
     if search:
@@ -372,6 +400,14 @@ def when(ts):
     return f"{day} {clock(ts)}"
 
 
+@app.template_filter("day_label")
+def day_label(day):
+    """'2026-10-31' -> 'Today', 'Tomorrow', or 'Saturday, Oct 31'."""
+    date = datetime.fromisoformat(day).date()
+    days = (date - datetime.now().date()).days
+    return {0: "Today", 1: "Tomorrow"}.get(days) or f"{date:%A}, {date:%b} {date.day}"
+
+
 @app.template_global()
 def elapsed_seconds(ts):
     return max(0, int((datetime.now() - datetime.fromisoformat(ts)).total_seconds()))
@@ -383,12 +419,12 @@ def next_field():
     return Markup(f'<input type="hidden" name="next" value="{escape(request.full_path)}">')
 
 
-def back(default):
+def back(default, **values):
     """Redirect to the form's `next` page if it's on this site, otherwise to `default`."""
     target = request.form.get("next", "")
     if target.startswith("/") and not target.startswith(("//", "/\\")):
         return redirect(target)
-    return redirect(url_for(default))
+    return redirect(url_for(default, **values))
 
 
 @app.context_processor
@@ -732,9 +768,12 @@ def party_detail(party_id):
         "SELECT u.* FROM party_members m JOIN users u ON u.id = m.user_id WHERE m.party_id = ? ORDER BY m.joined_at",
         (party_id,),
     ).fetchall()
+    raid = get_raid(party["raid_id"]) if party["raid_id"] else None
     return render_template(
         "party_detail.html",
         party=party,
+        raid=raid,
+        checked_in=raid is not None and checked_in(raid["id"]),
         members=members,
         is_member=any(m["id"] == g.user["id"] for m in members),
         is_leader=party["leader_id"] == g.user["id"],
@@ -758,7 +797,10 @@ def join_party(party_id):
             (party_id, g.user["id"], now()),
         )
         db.commit()
-        where = party["place"]["name"] + (f", {party['spot']}" if party["spot"] else "")
+        if party["raid_id"]:
+            where = party["spot"]
+        else:
+            where = party["place"]["name"] + (f", {party['spot']}" if party["spot"] else "")
         flash(f"You joined {party['name']}! Meet at {where}.")
     return redirect(url_for("party_detail", party_id=party_id))
 
@@ -774,7 +816,7 @@ def leave_party(party_id):
     db.execute("DELETE FROM party_members WHERE party_id = ? AND user_id = ?", (party_id, g.user["id"]))
     db.commit()
     flash(f"You left {party['name']}.")
-    return redirect(url_for("party_list"))
+    return redirect(url_for("raid_detail", raid_id=party["raid_id"]) if party["raid_id"] else url_for("party_list"))
 
 
 @app.post("/parties/<int:party_id>/disband")
@@ -786,8 +828,8 @@ def disband_party(party_id):
     db = get_db()
     db.execute("UPDATE parties SET ends_at = ? WHERE id = ?", (now(), party_id))
     db.commit()
-    flash(f"{party['name']} has been disbanded. Good work, everyone!")
-    return redirect(url_for("party_list"))
+    flash(f"{party['name']} has been disbanded.")
+    return redirect(url_for("raid_detail", raid_id=party["raid_id"]) if party["raid_id"] else url_for("party_list"))
 
 
 @app.post("/parties/<int:party_id>/study")
@@ -797,7 +839,9 @@ def party_study(party_id):
     is_member = get_db().execute(
         "SELECT 1 FROM party_members WHERE party_id = ? AND user_id = ?", (party_id, g.user["id"])
     ).fetchone()
-    if not is_member:
+    if party["raid_id"]:
+        flash("Raid parties check in at the event instead of starting a study session.", "error")
+    elif not is_member:
         flash("Join the party first.", "error")
     elif not party["live"]:
         flash("This party isn't meeting right now.", "error")
@@ -860,16 +904,168 @@ def finish_fight():
         flash("Session ended. Study for at least a minute to earn rewards.")
     else:
         flash(f"Session finished: {minutes} min studied, +{cc} CC, +{xp} XP{' (includes party bonus)' if bonus else ''}.")
-        new_level = level_info(g.user["xp"] + xp)["level"]
-        if new_level > level_info(g.user["xp"])["level"]:
-            flash(f"Level up! You're now level {new_level}.", "level")
+        flash_level_up(g.user["xp"], xp)
     return back("dashboard")
+
+
+def raid_info(row):
+    """Raid row -> dict with display fields the templates need."""
+    raid = dict(row)
+    today = datetime.now().date().isoformat()
+    raid["title"] = f"{raid['sport']} {raid['at_vs']} {raid['opponent']}"
+    raid["where"] = ", ".join(part for part in (raid["venue"], raid["city"]) if part) or "Location TBA"
+    raid["description"] = raid_feed.describe(raid)
+    raid["day"] = max(raid["starts_at"][:10], today)  # multi-day events still running show under today
+    raid["is_today"] = raid["starts_at"][:10] <= today <= raid["ends_at"][:10]
+    slug = raid["sport_slug"]
+    raid["schedule_url"] = f"https://soonersports.com/sports/{slug}/schedule" if slug else "https://soonersports.com/calendar"
+    return raid
+
+
+def get_raid(raid_id):
+    row = get_db().execute("SELECT * FROM raids WHERE id = ?", (raid_id,)).fetchone()
+    if row is None:
+        abort(404)
+    return raid_info(row)
+
+
+def refresh_raids():
+    """Re-fetch events from SoonerSports.com when what we have is more than a few hours old."""
+    db = get_db()
+    last_sync = db.execute("SELECT MAX(synced_at) FROM raids").fetchone()[0]
+    if last_sync and last_sync > stamp(datetime.now() - timedelta(hours=RAID_SYNC_HOURS)):
+        return
+    try:
+        raid_feed.sync(db)
+    except (OSError, ValueError, KeyError) as exc:  # offline, feed changed, etc.: keep showing what we have
+        app.logger.warning("Couldn't sync raids from SoonerSports.com: %s", exc)
+
+
+def raid_party_for(raid_id):
+    """The current user's party for this raid, if they're in one."""
+    return get_db().execute(
+        "SELECT p.id FROM parties p JOIN party_members m ON m.party_id = p.id WHERE p.raid_id = ? AND m.user_id = ?",
+        (raid_id, g.user["id"]),
+    ).fetchone()
+
+
+def checked_in(raid_id):
+    return get_db().execute(
+        "SELECT 1 FROM raid_checkins WHERE raid_id = ? AND user_id = ?", (raid_id, g.user["id"])
+    ).fetchone() is not None
 
 
 @app.route("/raids")
 @login_required
-def raids():
-    return render_template("raids.html")
+def raid_list():
+    refresh_raids()
+    db = get_db()
+    where = request.args.get("where", "all")
+    sport = request.args.get("sport", "")
+    sql = ("SELECT r.*, (SELECT COUNT(*) FROM parties p WHERE p.raid_id = r.id AND p.ends_at > ?) AS party_count"
+           " FROM raids r WHERE r.ends_at > ?")
+    args = [now(), now()]
+    if where == "home":
+        sql += " AND r.home_away = 'H'"
+    elif where == "away":
+        sql += " AND r.home_away != 'H'"
+    if sport:
+        sql += " AND r.sport = ?"
+        args.append(sport)
+    raids = sorted((raid_info(row) for row in db.execute(sql, args)), key=lambda r: (r["day"], r["starts_at"]))
+    sports = [row[0] for row in db.execute("SELECT DISTINCT sport FROM raids WHERE ends_at > ? ORDER BY sport", (now(),))]
+    my_raids = {row[0] for row in db.execute(
+        "SELECT DISTINCT p.raid_id FROM parties p JOIN party_members m ON m.party_id = p.id"
+        " WHERE m.user_id = ? AND p.raid_id IS NOT NULL", (g.user["id"],))}
+    return render_template("raids.html", raids=raids, sports=sports, where=where, sport=sport, my_raids=my_raids)
+
+
+@app.route("/raids/<int:raid_id>")
+@login_required
+def raid_detail(raid_id):
+    raid = get_raid(raid_id)
+    rows = get_db().execute(
+        PARTY_SELECT + " WHERE p.raid_id = ? AND p.ends_at > ? GROUP BY p.id ORDER BY p.starts_at", (raid_id, now())
+    ).fetchall()
+    # Suggest meeting an hour before the start, when the start time is known.
+    start = datetime.fromisoformat(raid["starts_at"])
+    suggested_meet = ""
+    if start.time() != datetime.min.time() and start - timedelta(hours=1) > datetime.now():
+        suggested_meet = (start - timedelta(hours=1)).strftime("%Y-%m-%dT%H:%M")
+    return render_template(
+        "raid_detail.html",
+        raid=raid,
+        parties=attach_members([party_info(row) for row in rows]),
+        my_party=raid_party_for(raid_id),
+        checked_in=checked_in(raid_id),
+        suggested_meet=suggested_meet,
+        raid_reward=raid_rewards(False),
+    )
+
+
+@app.post("/raids/<int:raid_id>/parties")
+@login_required
+def raid_party_new(raid_id):
+    raid = get_raid(raid_id)
+    form = request.form
+    name = form.get("name", "").strip()[:60]
+    spot = form.get("spot", "").strip()[:60]
+    capacity = form.get("capacity", type=int)
+    try:
+        meet = datetime.fromisoformat(form["meet_at"]) if form.get("meet_at") else datetime.now()
+    except ValueError:
+        meet = None
+    ends = datetime.fromisoformat(raid["ends_at"])
+    if not (name and spot):
+        flash("Give your raid party a name and a place to meet.", "error")
+    elif meet is None or not (datetime.now() - timedelta(minutes=10) <= meet < ends):
+        flash("Pick a meeting time between now and the end of the event.", "error")
+    elif not 2 <= (capacity or 0) <= 20:
+        flash("Pick a party size from 2 to 20.", "error")
+    else:
+        db = get_db()
+        cur = db.execute(
+            "INSERT INTO parties (leader_id, name, course, dungeon, spot, description, capacity, starts_at, ends_at, raid_id)"
+            " VALUES (?, ?, ?, 'other', ?, ?, ?, ?, ?, ?)",
+            (g.user["id"], name, raid["sport"], spot, form.get("description", "").strip()[:200], capacity,
+             stamp(max(meet, datetime.now())), raid["ends_at"], raid_id),
+        )
+        db.execute(
+            "INSERT INTO party_members (party_id, user_id, joined_at) VALUES (?, ?, ?)",
+            (cur.lastrowid, g.user["id"], now()),
+        )
+        db.commit()
+        flash(f"Raid party posted for {raid['title']}.")
+        return redirect(url_for("party_detail", party_id=cur.lastrowid))
+    return redirect(url_for("raid_detail", raid_id=raid_id))
+
+
+@app.post("/raids/<int:raid_id>/checkin")
+@login_required
+def raid_checkin(raid_id):
+    raid = get_raid(raid_id)
+    party = raid_party_for(raid_id)
+    if not raid["is_today"]:
+        flash("Check-in opens on the day of the event.", "error")
+    elif party is None:
+        flash("Join or start a raid party for this event first.", "error")
+    elif checked_in(raid_id):
+        flash("You already checked in at this raid.")
+    else:
+        bonus = party_size(party["id"]) >= 2
+        cc, xp = raid_rewards(bonus)
+        db = get_db()
+        db.execute(
+            "INSERT INTO raid_checkins (user_id, raid_id, checked_in_at) VALUES (?, ?, ?)", (g.user["id"], raid_id, now())
+        )
+        db.execute(
+            "UPDATE users SET cc = cc + ?, cc_earned = cc_earned + ?, xp = xp + ?, raids = raids + 1 WHERE id = ?",
+            (cc, cc, xp, g.user["id"]),
+        )
+        db.commit()
+        flash(f"Checked in at {raid['title']}: +{cc} CC, +{xp} XP{' (includes party bonus)' if bonus else ''}.")
+        flash_level_up(g.user["xp"], xp)
+    return back("raid_detail", raid_id=raid_id)
 
 
 # --- Clans ------------------------------------------------------------------

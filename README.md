@@ -26,8 +26,11 @@ campus), and earn **Crimson Crystals (CC)** and **XP** for every minute they stu
   - *Clans:* most CC, most raids, most study time
 
   Leaderboards rank by CC *earned*, so spending CC in the shop never drops anyone down a board.
-- **Campus raids (coming soon):** events pulled from OU Engage. For now there's a placeholder
-  page, and each player has a `raids` stat ready to be filled in.
+- **Raids:** every OU game and meet from the [SoonerSports.com calendar](https://soonersports.com/calendar),
+  with time, location, TV, ticket links, and a short description. Students start or join a
+  **raid party** for an event, choosing a meeting spot and time. For away games this is a watch
+  party. On game day, raid party members check in for 50 CC + 100 XP (+50% with 2+ in the party),
+  which also counts toward their raids stat.
 
 ## Run it
 
@@ -63,6 +66,7 @@ session timer.
 | --- | --- |
 | `app.py` | Routes and game rules: rewards, levels, parties, dungeons, clans, friends, leaderboards |
 | `avatar.py` | Avatar shop items and the SVG avatar renderer |
+| `raids.py` | Pulls events from the SoonerSports.com calendar feed (`python raids.py` syncs by hand) |
 | `schema.sql` | Database tables, created automatically on startup |
 | `seed.py` | Demo data for presentations |
 | `templates/` | Jinja HTML pages |
@@ -71,9 +75,16 @@ session timer.
 Data is stored in `soonerbuddies.db` (git-ignored). The list of dungeons is `DUNGEONS` in
 `app.py`, and reward rates are the constants at the top of the same file.
 
+Raids come from the JSON feed behind soonersports.com/calendar
+(`/api/v2/Calendar/from/<date>/to/<date>`). The Raids page re-syncs the next 60 days when its
+copy is more than 6 hours old. If the site can't be reached, it keeps showing the last synced
+events. That feed is undocumented, so if SoonerSports.com changes it, `raids.py` is the only
+file to update.
+
 ## Next steps
 
-- Pull campus events from OU Engage as raids, with raid parties and check-in rewards
+- Add non-athletics campus events from OU Engage as raids
+- Verify raid check-ins by location so rewards can't be faked
 - Verify study sessions (e.g. location check-in) so rewards can't be faked
 - Email verification for `@ou.edu` accounts
 - CSRF tokens and a real `SECRET_KEY` before deploying publicly

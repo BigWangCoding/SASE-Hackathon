@@ -41,7 +41,8 @@ CREATE TABLE IF NOT EXISTS parties (
     description TEXT NOT NULL DEFAULT '',
     capacity INTEGER NOT NULL,
     starts_at TEXT NOT NULL,
-    ends_at TEXT NOT NULL
+    ends_at TEXT NOT NULL,
+    raid_id INTEGER REFERENCES raids(id)      -- set for raid parties (going to an event together)
 );
 
 CREATE TABLE IF NOT EXISTS party_members (
@@ -62,6 +63,32 @@ CREATE TABLE IF NOT EXISTS study_sessions (
     minutes INTEGER NOT NULL DEFAULT 0,
     cc INTEGER NOT NULL DEFAULT 0,
     xp INTEGER NOT NULL DEFAULT 0
+);
+
+-- OU athletics events from SoonerSports.com (see raids.py). id is SoonerSports' event id.
+CREATE TABLE IF NOT EXISTS raids (
+    id INTEGER PRIMARY KEY,
+    sport TEXT NOT NULL,
+    sport_slug TEXT NOT NULL DEFAULT '',
+    opponent TEXT NOT NULL,
+    at_vs TEXT NOT NULL,
+    home_away TEXT NOT NULL,                  -- H, A, or N (neutral site)
+    venue TEXT NOT NULL DEFAULT '',
+    city TEXT NOT NULL DEFAULT '',
+    starts_at TEXT NOT NULL,                  -- local time; 00:00 when only the day is known
+    ends_at TEXT NOT NULL,                    -- end of the event's last day
+    time_text TEXT NOT NULL DEFAULT '',       -- as SoonerSports shows it, e.g. "3:15 p.m. CT"
+    tv TEXT NOT NULL DEFAULT '',
+    note TEXT NOT NULL DEFAULT '',
+    tickets_url TEXT NOT NULL DEFAULT '',
+    synced_at TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS raid_checkins (
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    raid_id INTEGER NOT NULL REFERENCES raids(id) ON DELETE CASCADE,
+    checked_in_at TEXT NOT NULL,
+    PRIMARY KEY (user_id, raid_id)
 );
 
 CREATE TABLE IF NOT EXISTS clans (

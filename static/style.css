@@ -125,6 +125,8 @@ td { padding: 10px 8px; border-bottom: 1px solid var(--line); }
 td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
 td a { color: var(--ink); font-weight: 600; text-decoration: none; }
 td a:hover { color: var(--crimson); }
+.facts td:first-child { width: 140px; color: var(--muted); }
+.facts a { color: var(--crimson); font-weight: 400; text-decoration: underline; }
 .who { display: flex; align-items: center; gap: 10px; }
 tr.me td { background: var(--cream); }
 .rank { width: 48px; color: var(--muted); font-weight: 600; }

@@ -2,15 +2,26 @@
 {% from "_macros.html" import player_row %}
 {% block title %}{{ party.name }}{% endblock %}
 {% block content %}
-<a class="back" href="{{ url_for('party_list') }}">← Parties</a>
+{% if raid %}
+  <a class="back" href="{{ url_for('raid_detail', raid_id=raid.id) }}">← {{ raid.title }}</a>
+{% else %}
+  <a class="back" href="{{ url_for('party_list') }}">← Parties</a>
+{% endif %}
 <div class="split">
   <section>
-    <p class="code">{{ party.course }}</p>
+    <p class="code">{{ party.course }}{% if raid %} raid party{% endif %}</p>
     <h1>{{ party.name }}</h1>
-    <p class="lead">
-      {{ party.place.name }}{% if party.spot %}, {{ party.spot }}{% endif %}<br>
-      {{ party.starts_at | when }} to {{ party.ends_at | clock }}
-    </p>
+    {% if raid %}
+      <p class="lead">
+        Meeting at {{ party.spot }}, {{ party.starts_at | when }}<br>
+        For <a href="{{ url_for('raid_detail', raid_id=raid.id) }}">{{ raid.title }}</a>: {{ raid.day | day_label }}, {{ raid.time_text }}, {{ raid.where }}
+      </p>
+    {% else %}
+      <p class="lead">
+        {{ party.place.name }}{% if party.spot %}, {{ party.spot }}{% endif %}<br>
+        {{ party.starts_at | when }} to {{ party.ends_at | clock }}
+      </p>
+    {% endif %}
     <p class="caption">
       {% if ended %}This party has ended.
       {% elif party.live %}<span class="live">Meeting now.</span>
@@ -21,7 +32,27 @@
 
     {% if not ended %}
       <div class="actions">
-        {% if is_member %}
+        {% if is_member and raid %}
+          {% if checked_in %}
+            <span class="live">You checked in at this raid.</span>
+          {% elif raid.is_today %}
+            <form method="post" action="{{ url_for('raid_checkin', raid_id=raid.id) }}">
+              {{ next_field() }}
+              <button class="btn" type="submit">I'm here: check in</button>
+            </form>
+          {% else %}
+            <span class="caption">Check-in opens on game day.</span>
+          {% endif %}
+          {% if is_leader %}
+            <form method="post" action="{{ url_for('disband_party', party_id=party.id) }}">
+              <button class="btn quiet" type="submit">End party</button>
+            </form>
+          {% else %}
+            <form method="post" action="{{ url_for('leave_party', party_id=party.id) }}">
+              <button class="btn quiet" type="submit">Leave</button>
+            </form>
+          {% endif %}
+        {% elif is_member %}
           {% if g.fight and g.fight.party_id == party.id %}
             <span class="live">You're studying with this party.</span>
           {% elif party.live %}

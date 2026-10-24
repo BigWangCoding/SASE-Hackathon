@@ -11,6 +11,7 @@ from datetime import datetime, timedelta
 from werkzeug.security import generate_password_hash
 
 import avatar
+import raids as raid_feed
 from app import app, get_db, stamp
 
 PASSWORD = "password123"
@@ -107,6 +108,18 @@ ACTIVE_SESSIONS = [
 # Finished runs for the demo user's history: (dungeon, minutes, with party?, days ago).
 DEMO_RUNS = [("bizzell", 45, False, 1), ("psc", 60, True, 2), ("union", 30, False, 3)]
 
+# Raid parties for real upcoming events, matched to the SoonerSports.com feed at seed time:
+# (sport slug, home games only?, leader, name, meeting spot, description, members).
+RAID_PARTIES = [
+    ("football", False, "jordan", "Union watch party", "Oklahoma Memorial Union, 2nd floor TVs",
+     "Big screen, snacks, and the whole game.", ["noah", "liam"]),
+    ("football", True, "ava", "Student section crew", "South end zone, Gate 7",
+     "Meeting early to get seats together. Wear crimson.", ["emma", "casey"]),
+    ("mbball", True, "riley", "Lloyd Noble crew", "Lloyd Noble Center main entrance",
+     "Going straight from the library.", ["sam"]),
+    ("wbball", True, "olivia", "Women's hoops night", "Lloyd Noble Center main entrance", "", ["maya", "taylor"]),
+]
+
 
 def handle(email):
     return email.split("@")[0]
@@ -117,7 +130,7 @@ with app.app_context():
     db.executescript(
         "DELETE FROM study_sessions; DELETE FROM party_members; DELETE FROM parties;"
         "DELETE FROM clan_members; DELETE FROM clans; DELETE FROM friendships;"
-        "DELETE FROM inventory; DELETE FROM users;"
+        "DELETE FROM inventory; DELETE FROM raid_checkins; DELETE FROM users;"
     )
     right_now = datetime.now().replace(second=0, microsecond=0)
     password_hash = generate_password_hash(PASSWORD)
@@ -184,5 +197,33 @@ with app.app_context():
         )
     db.commit()
 
-print(f"Seeded {len(STUDENTS)} adventurers, {len(CLANS)} clans, and {len(PARTIES)} parties.")
+    try:
+        raid_feed.sync(db)
+    except (OSError, ValueError, KeyError) as exc:
+        print(f"Couldn't reach SoonerSports.com ({exc}). Using any raids already saved.")
+    raid_party_count = 0
+    for slug, home_only, leader, name, spot, description, members in RAID_PARTIES:
+        raid = db.execute(
+            "SELECT * FROM raids WHERE sport_slug = ? AND ends_at > ?" + (" AND home_away = 'H'" if home_only else "")
+            + " ORDER BY starts_at LIMIT 1",
+            (slug, stamp(datetime.now())),
+        ).fetchone()
+        if raid is None:
+            continue
+        start = datetime.fromisoformat(raid["starts_at"])
+        meet = start - timedelta(hours=1) if start.hour else start.replace(hour=12)
+        cur = db.execute(
+            "INSERT INTO parties (leader_id, name, course, dungeon, spot, description, capacity, starts_at, ends_at, raid_id)"
+            " VALUES (?, ?, ?, 'other', ?, ?, 10, ?, ?, ?)",
+            (ids[leader], name, raid["sport"], spot, description, stamp(meet), raid["ends_at"], raid["id"]),
+        )
+        db.executemany(
+            "INSERT INTO party_members (party_id, user_id, joined_at) VALUES (?, ?, ?)",
+            [(cur.lastrowid, ids[m], stamp(right_now - timedelta(hours=2))) for m in [leader, *members]],
+        )
+        raid_party_count += 1
+    db.commit()
+
+print(f"Seeded {len(STUDENTS)} adventurers, {len(CLANS)} clans, {len(PARTIES)} parties, "
+      f"and {raid_party_count} raid parties.")
 print(f"Log in as demo@ou.edu / {PASSWORD}")

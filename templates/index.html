@@ -1,31 +1,35 @@
-{% extends "base.html" %}
-{% block title %}Welcome{% endblock %}
+{% extends "public.html" %}
+{% from "_macros.html" import party_row %}
+{% block title %}Find someone to study with{% endblock %}
 {% block content %}
-<section class="hero">
-  <h1>Don't study alone.</h1>
-  <p>
-    See where OU students are studying your classes right now, down to the building and room.
-    Walk over and join them, or post your own spot so classmates can find you.
-  </p>
-  <div class="actions">
-    <a class="btn" href="{{ url_for('signup') }}">Create your profile</a>
-    <a class="btn btn-ghost" href="{{ url_for('login') }}">Log in</a>
-  </div>
-  <p class="muted">{{ open_count }} study room{{ '' if open_count == 1 else 's' }} open right now.</p>
-</section>
+<div class="landing">
+  <section>
+    <h1>Find someone studying your class, right now.</h1>
+    <p class="lead">
+      Sooner Buddies shows which OU students are studying which classes, and where: a table on
+      Bizzell's third floor, the Gallogly labs, the Union. Join their group or post your own.
+      Every minute you study earns Crimson Crystals for your avatar and your clan.
+    </p>
+    <div class="actions">
+      <a class="btn" href="{{ url_for('signup') }}">Sign up with your OU email</a>
+      <a href="{{ url_for('login') }}">I already have an account</a>
+    </div>
 
-<section class="steps">
-  <div class="card">
-    <h3>1. Make a profile</h3>
-    <p>Add your major, year, and the classes you're taking this semester.</p>
-  </div>
-  <div class="card">
-    <h3>2. Find a room</h3>
-    <p>Browse open study rooms by class, with the building and room number.</p>
-  </div>
-  <div class="card">
-    <h3>3. Or post your own</h3>
-    <p>Already studying? Post where you are and we'll match you with classmates.</p>
-  </div>
-</section>
+    <h2>How it works</h2>
+    <ol class="steps">
+      <li><strong>List your classes.</strong> We use them to show you parties and classmates for CHEM 1315, CS 2413, or whatever you're taking.</li>
+      <li><strong>Join a party or start a session.</strong> A party is a study group meeting at a campus spot. You can also study solo.</li>
+      <li><strong>Hit Finish when you're done.</strong> You get 1 Crimson Crystal and 2 XP per minute, and 50% more when you study with a party.</li>
+      <li><strong>Spend and compete.</strong> Buy avatar items, climb the leaderboards, and add your hours to your club, fraternity, or sorority's clan.</li>
+    </ol>
+  </section>
+
+  <section>
+    <h2>Open right now</h2>
+    <p class="caption">{{ studying }} student{{ '' if studying == 1 else 's' }} studying · {{ parties | length }} open part{{ 'y' if parties | length == 1 else 'ies' }}</p>
+    <div class="rows">
+      {% for p in parties[:6] %}{{ party_row(p) }}{% else %}<p class="empty">Nobody has posted a party yet.</p>{% endfor %}
+    </div>
+  </section>
+</div>
 {% endblock %}

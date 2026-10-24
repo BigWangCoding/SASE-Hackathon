@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+{% block title %}Dungeons{% endblock %}
+{% block content %}
+<h1>Dungeons</h1>
+<p class="lead">
+  Dungeons are study spots on campus. Start a session at one and you earn {{ rewards.cc }} CC and
+  {{ rewards.xp }} XP per minute until you hit Finish (up to {{ rewards.max_hours }} hours).
+  To get the {{ rewards.bonus }}% party bonus, start from a <a href="{{ url_for('party_list') }}">party</a> instead.
+</p>
+
+<div class="table-wrap">
+  <table>
+    <thead>
+      <tr><th>Spot</th><th>Type</th><th class="num">Studying now</th><th class="num">Parties meeting</th><th></th></tr>
+    </thead>
+    <tbody>
+      {% for key, d in dungeons.items() %}
+        <tr>
+          <td><strong>{{ d.name }}</strong><br><span class="caption">{{ d.blurb }}</span></td>
+          <td>{{ d.kind }}</td>
+          <td class="num">{% if fighters[key] %}<span class="live">{{ fighters[key] }}</span>{% else %}0{% endif %}</td>
+          <td class="num">{{ live[key] }}</td>
+          <td class="num">
+            <form method="post" action="{{ url_for('enter_dungeon', key=key) }}">
+              {{ next_field() }}
+              <button class="btn quiet small" type="submit" {% if g.fight %}disabled title="Finish your current session first"{% endif %}>Study here</button>
+            </form>
+          </td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

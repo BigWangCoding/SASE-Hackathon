@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+{% block title %}{{ clan.name }}{% endblock %}
+{% block content %}
+<a class="back" href="{{ url_for('clan_list') }}">← Clans</a>
+<div class="page-head">
+  <div>
+    <h1><span class="emblem">{{ clan.emblem }}</span> {{ clan.name }}</h1>
+    <p class="caption">{{ clan.kind }}{% if clan.founder_name %} · founded by {{ clan.founder_name }}{% endif %}</p>
+  </div>
+  {% if is_member %}
+    <form method="post" action="{{ url_for('leave_clan', clan_id=clan.id) }}">
+      <span class="caption">You're a member</span>
+      <button class="btn quiet small" type="submit">Leave</button>
+    </form>
+  {% else %}
+    <form method="post" action="{{ url_for('join_clan', clan_id=clan.id) }}">
+      <button class="btn" type="submit">Join clan</button>
+    </form>
+  {% endif %}
+</div>
+{% if clan.description %}<p class="lead">{{ clan.description }}</p>{% endif %}
+
+<div class="stat-line">
+  <div><b>{{ clan.members }}</b><span>members</span></div>
+  <div><b>{{ clan.xp | num }}</b><span>XP</span></div>
+  <div><b>{{ clan.cc | num }}</b><span>CC earned</span></div>
+  <div><b>{{ clan.study | hours }}</b><span>studied</span></div>
+  <div><b>{{ clan.raids | num }}</b><span>raids</span></div>
+</div>
+
+<h2>Members</h2>
+<div class="table-wrap">
+  <table>
+    <thead>
+      <tr><th>Member</th><th class="num">Level</th><th class="num">XP</th><th class="num">Share</th><th class="num">CC earned</th><th class="num">Studied</th><th class="num">Raids</th></tr>
+    </thead>
+    <tbody>
+      {% for m in members %}
+        <tr{% if m.id == g.user.id %} class="me"{% endif %}>
+          <td><a class="who" href="{{ url_for('player', user_id=m.id) }}">{{ avatar_svg(m, 32, bust=True) }}{{ m.name }}</a></td>
+          <td class="num">{{ level_info(m.xp).level }}</td>
+          <td class="num">{{ m.xp | num }}</td>
+          <td class="num">{{ ((100 * m.xp / clan.xp) | round | int) if clan.xp else 0 }}%</td>
+          <td class="num">{{ m.cc_earned | num }}</td>
+          <td class="num">{{ m.study_minutes | hours }}</td>
+          <td class="num">{{ m.raids }}</td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

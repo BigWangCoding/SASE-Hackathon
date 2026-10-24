@@ -1,19 +1,22 @@
-<label>Name
-  <input name="name" value="{{ form.get('name', '') }}" required>
+<label class="field"><span>Name</span>
+  <input name="name" maxlength="40" value="{{ form.get('name', '') }}" required>
 </label>
-<div class="row">
-  <label>Major
-    <input name="major" value="{{ form.get('major', '') }}" placeholder="e.g. Chemistry" required>
+<div class="form-row">
+  <label class="field"><span>Gender</span>
+    <select name="gender">
+      {% for x in genders %}<option {% if form.get('gender') == x %}selected{% endif %}>{{ x }}</option>{% endfor %}
+    </select>
   </label>
-  <label>Year
-    <select name="year" required>
-      {% for y in years %}
-        <option {% if form.get('year') == y %}selected{% endif %}>{{ y }}</option>
-      {% endfor %}
+  <label class="field"><span>Year</span>
+    <select name="year">
+      {% for y in years %}<option {% if form.get('year') == y %}selected{% endif %}>{{ y }}</option>{% endfor %}
     </select>
   </label>
 </div>
-<label>Classes this semester
+<label class="field"><span>Major</span>
+  <input name="major" maxlength="60" value="{{ form.get('major', '') }}" placeholder="e.g. Chemistry" required>
+</label>
+<label class="field"><span>Classes this semester</span>
   <input name="courses" value="{{ form.get('courses', '') }}" placeholder="CHEM 1315, MATH 1914, ENGL 1113" required>
-  <small>Separate with commas. We use these to match you with classmates and rooms.</small>
+  <small>Separate with commas. We use these to match you with parties and classmates.</small>
 </label>

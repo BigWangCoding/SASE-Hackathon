@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+{% from "_macros.html" import player_row, friend_button %}
+{% block title %}Friends{% endblock %}
+
+{% macro remove_button(user_id, label) %}
+  <form method="post" action="{{ url_for('remove_friend', user_id=user_id) }}">
+    {{ next_field() }}
+    <button class="btn quiet small" type="submit">{{ label }}</button>
+  </form>
+{% endmacro %}
+
+{% block content %}
+<h1>Friends</h1>
+<div class="split">
+  <section>
+    {% if received %}
+      <h2>Waiting on you</h2>
+      <div class="rows">
+        {% for u in received %}
+          {% call player_row(u) %}
+            {{ friend_button(u.id, "received") }}
+            {{ remove_button(u.id, "Decline") }}
+          {% endcall %}
+        {% endfor %}
+      </div>
+    {% endif %}
+
+    <h2>Your friends ({{ friends | length }})</h2>
+    <div class="rows">
+      {% for u in friends %}
+        {% call player_row(u, studying=u.id in studying) %}{{ remove_button(u.id, "Remove") }}{% endcall %}
+      {% else %}
+        <p class="empty">No friends yet. Add classmates from the list on the right.</p>
+      {% endfor %}
+    </div>
+
+    {% if sent %}
+      <h2>Requests you sent</h2>
+      <div class="rows">
+        {% for u in sent %}
+          {% call player_row(u) %}{{ remove_button(u.id, "Cancel") }}{% endcall %}
+        {% endfor %}
+      </div>
+    {% endif %}
+  </section>
+
+  <section>
+    <h2>People in your classes</h2>
+    <div class="rows">
+      {% for m in suggestions %}
+        {% call player_row(m.user, m.reason) %}{{ friend_button(m.user.id, none) }}{% endcall %}
+      {% else %}
+        <p class="empty">No suggestions right now.</p>
+      {% endfor %}
+    </div>
+  </section>
+</div>
+{% endblock %}

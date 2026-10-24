@@ -1,12 +1,15 @@
 {% extends "base.html" %}
-{% block title %}Profile{% endblock %}
+{% block title %}Edit profile{% endblock %}
 {% block content %}
-<div class="card form-card">
-  <h1>Your profile</h1>
-  <p class="muted">{{ g.user.email }}</p>
+<div class="form">
+  <h1>Edit profile</h1>
+  <p class="caption">{{ g.user.email }}</p>
   <form method="post">
     {% include "_profile_fields.html" %}
-    <button class="btn" type="submit">Save</button>
+    <div class="actions">
+      <button class="btn" type="submit">Save</button>
+      <a href="{{ url_for('player', user_id=g.user.id) }}">Cancel</a>
+    </div>
   </form>
 </div>
 {% endblock %}

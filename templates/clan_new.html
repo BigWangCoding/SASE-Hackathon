@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% block title %}Create a clan{% endblock %}
+{% block content %}
+<a class="back" href="{{ url_for('clan_list') }}">← Clans</a>
+<div class="form">
+  <h1>Create a clan</h1>
+  <p class="caption">For your club, fraternity, sorority, or team. You'll be its first member.</p>
+  <form method="post">
+    <div class="form-row">
+      <label class="field"><span>Name</span>
+        <input name="name" maxlength="40" value="{{ form.get('name', '') }}" placeholder="OU Robotics Club" required>
+      </label>
+      <label class="field"><span>Type</span>
+        <select name="kind">
+          {% for k in clan_kinds %}<option {% if form.get('kind') == k %}selected{% endif %}>{{ k }}</option>{% endfor %}
+        </select>
+      </label>
+    </div>
+    <div class="field">
+      <span>Emblem</span>
+      <div class="emblems">
+        {% for e in clan_emblems %}
+          <label>
+            <input type="radio" name="emblem" value="{{ e }}" {% if form.get('emblem', clan_emblems[0]) == e %}checked{% endif %}>
+            <span>{{ e }}</span>
+          </label>
+        {% endfor %}
+      </div>
+    </div>
+    <label class="field"><span>Description <small>(optional)</small></span>
+      <input name="description" maxlength="200" value="{{ form.get('description', '') }}">
+    </label>
+    <button class="btn" type="submit">Create clan</button>
+  </form>
+</div>
+{% endblock %}

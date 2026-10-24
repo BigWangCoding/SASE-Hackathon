@@ -1,20 +1,21 @@
-{% extends "base.html" %}
+{% extends "public.html" %}
 {% block title %}Sign up{% endblock %}
 {% block content %}
-<div class="card form-card">
-  <h1>Create your profile</h1>
+<div class="form">
+  <h1>Create your account</h1>
+  <p class="caption">You start with {{ starting_cc }} Crimson Crystals to spend in the avatar shop.</p>
   <form method="post">
-    <div class="row">
-      <label>OU email
+    <div class="form-row">
+      <label class="field"><span>OU email</span>
         <input type="email" name="email" value="{{ form.get('email', '') }}" placeholder="you@ou.edu" required>
       </label>
-      <label>Password
+      <label class="field"><span>Password</span>
         <input type="password" name="password" minlength="6" required>
       </label>
     </div>
     {% include "_profile_fields.html" %}
-    <button class="btn" type="submit">Sign up</button>
+    <button class="btn" type="submit">Create account</button>
   </form>
-  <p class="muted">Already have an account? <a href="{{ url_for('login') }}">Log in</a></p>
+  <p class="caption">Already have an account? <a href="{{ url_for('login') }}">Log in</a></p>
 </div>
 {% endblock %}

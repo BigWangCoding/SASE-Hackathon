@@ -1,21 +1,44 @@
-{% macro course_chips(courses) %}
-  <ul class="chips">
-    {% for c in courses %}<li>{{ c }}</li>{% endfor %}
-  </ul>
+{% macro course_tags(courses) %}
+  <ul class="tags">{% for c in courses %}<li>{{ c }}</li>{% endfor %}</ul>
 {% endmacro %}
 
-{% macro room_card(room, joined=False) %}
-  <a class="card room" href="{{ url_for('room_detail', room_id=room.id) }}">
-    <div class="room-top">
-      <span class="course">{{ room.course }}</span>
-      {% if joined %}<span class="badge">You're here</span>{% endif %}
-    </div>
-    <h3>{{ room.building }} · {{ room.room_number }}</h3>
-    {% if room.topic %}<p>{{ room.topic }}</p>{% endif %}
-    <p class="muted">
-      {{ room.member_count }}/{{ room.capacity }} studying · until {{ room.ends_at | clock }}
-      ({{ room.ends_at | time_left }})
-    </p>
-    <p class="muted">Hosted by {{ room.host_name }}</p>
+{% macro party_row(p, joined=False) %}
+  <a class="row" href="{{ url_for('party_detail', party_id=p.id) }}">
+    <span class="code">{{ p.course }}</span>
+    <span class="grow">
+      <strong>{{ p.name }}</strong>
+      <span class="caption">{{ p.place.name }}{% if p.spot %}, {{ p.spot }}{% endif %} · led by {{ p.leader_name }}</span>
+    </span>
+    <span class="avatar-stack">{% for m in p.members[:4] %}{{ avatar_svg(m, 28, bust=True) }}{% endfor %}</span>
+    <span class="row-end">
+      {% if p.live %}<span class="live">Meeting now</span>{% else %}{{ p.starts_at | when }}{% endif %}
+      <span class="caption">{{ p.member_count }} of {{ p.capacity }}{% if joined %} · <span class="joined">you're in</span>{% endif %}</span>
+    </span>
   </a>
+{% endmacro %}
+
+{# A player with their avatar. Anything inside {% call %} shows on the right (e.g. buttons). #}
+{% macro player_row(u, note="", studying=False) %}
+  <div class="row">
+    <a href="{{ url_for('player', user_id=u.id) }}">{{ avatar_svg(u, 40, bust=True) }}</a>
+    <div class="grow">
+      <a href="{{ url_for('player', user_id=u.id) }}"><strong>{{ u.name }}</strong></a>
+      <span class="caption">{{ note or (u.major ~ " · level " ~ level_info(u.xp).level) }}</span>
+      {% if studying %}<span class="caption live">Studying now</span>{% endif %}
+    </div>
+    {% if caller %}{{ caller() }}{% endif %}
+  </div>
+{% endmacro %}
+
+{% macro friend_button(user_id, status) %}
+  {% if status == "friends" %}
+    <span class="caption">Friends</span>
+  {% elif status == "sent" %}
+    <span class="caption">Request sent</span>
+  {% else %}
+    <form method="post" action="{{ url_for('add_friend', user_id=user_id) }}">
+      {{ next_field() }}
+      <button class="btn quiet small" type="submit">{{ "Accept" if status == "received" else "Add friend" }}</button>
+    </form>
+  {% endif %}
 {% endmacro %}

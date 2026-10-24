@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+{% block title %}Leaderboards{% endblock %}
+
+{% macro metric_value(metric, value) -%}
+  {%- if metric == "level" %}Level {{ level_info(value).level }}
+  {%- elif metric == "study" %}{{ value | hours }}
+  {%- elif metric == "cc" %}{{ value | num }} CC
+  {%- else %}{{ value | num }}{% endif -%}
+{%- endmacro %}
+
+{% block content %}
+<h1>Leaderboards</h1>
+<p class="caption">CC rankings count crystals earned, so buying avatar items never costs you a spot.</p>
+
+<nav class="tabs">
+  <a href="{{ url_for('leaderboard', board='players') }}"{% if board == 'players' %} class="active"{% endif %}>Players</a>
+  <a href="{{ url_for('leaderboard', board='clans') }}"{% if board == 'clans' %} class="active"{% endif %}>Clans</a>
+</nav>
+<nav class="tabs secondary">
+  {% for key, tab_label in tabs %}
+    <a href="{{ url_for('leaderboard', board=board, metric=key) }}"{% if key == metric %} class="active"{% endif %}>{{ tab_label }}</a>
+  {% endfor %}
+</nav>
+
+<div class="table-wrap">
+  <table>
+    <thead>
+      <tr><th>#</th><th>{{ "Clan" if board == "clans" else "Player" }}</th><th></th><th class="num">{{ label }}</th></tr>
+    </thead>
+    <tbody>
+      {% for row in rows %}
+        <tr{% if row.me %} class="me"{% endif %}>
+          <td class="rank{% if loop.index <= 3 %} top{% endif %}">{{ loop.index }}</td>
+          {% if board == "clans" %}
+            <td><a class="who" href="{{ url_for('clan_detail', clan_id=row.clan.id) }}"><span class="emblem">{{ row.clan.emblem }}</span>{{ row.clan.name }}</a></td>
+            <td class="caption">{{ row.clan.kind }} · {{ row.clan.members }} members</td>
+          {% else %}
+            <td><a class="who" href="{{ url_for('player', user_id=row.user.id) }}">{{ avatar_svg(row.user, 32, bust=True) }}{{ row.user.name }}</a></td>
+            <td class="caption">{{ row.user.major }}</td>
+          {% endif %}
+          <td class="num">{{ metric_value(metric, row.value) }}</td>
+        </tr>
+      {% else %}
+        <tr><td colspan="4" class="empty">Nobody here yet.</td></tr>
+      {% endfor %}
+      {% if my_rank and my_rank > rows | length %}
+        <tr class="me">
+          <td class="rank">{{ my_rank }}</td>
+          <td><span class="who">{{ avatar_svg(g.user, 32, bust=True) }}{{ g.user.name }}</span></td>
+          <td class="caption">You</td>
+          <td class="num">{{ metric_value(metric, my_value) }}</td>
+        </tr>
+      {% endif %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

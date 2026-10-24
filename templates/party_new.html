@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+{% block title %}Start a party{% endblock %}
+{% block content %}
+<a class="back" href="{{ url_for('party_list') }}">← Parties</a>
+<div class="form">
+  <h1>Start a party</h1>
+  <p class="caption">Students taking the same class see your party at the top of their list.</p>
+  <form method="post">
+    <label class="field"><span>Name</span>
+      <input name="name" maxlength="60" value="{{ form.get('name', '') }}" placeholder="Orgo exam 2 review" required>
+    </label>
+    <div class="form-row">
+      <label class="field"><span>Class</span>
+        <input name="course" list="my-courses" value="{{ form.get('course', '') }}" placeholder="CHEM 1315" required>
+        <datalist id="my-courses">
+          {% for c in g.user.courses | courses %}<option value="{{ c }}">{% endfor %}
+        </datalist>
+      </label>
+      <label class="field"><span>Where</span>
+        <select name="dungeon">
+          {% for key, d in dungeons.items() %}
+            <option value="{{ key }}" {% if form.get('dungeon') == key %}selected{% endif %}>{{ d.name }}</option>
+          {% endfor %}
+        </select>
+      </label>
+    </div>
+    <div class="form-row">
+      <label class="field"><span>Room or table</span>
+        <input name="spot" maxlength="60" value="{{ form.get('spot', '') }}" placeholder="Room 230, 3rd floor east">
+      </label>
+      <label class="field"><span>Max people</span>
+        <input type="number" name="capacity" min="2" max="12" value="{{ form.get('capacity', 5) }}" required>
+      </label>
+    </div>
+    <div class="form-row">
+      <label class="field"><span>Starts <small>(blank means now)</small></span>
+        <input type="datetime-local" name="starts_at" value="{{ form.get('starts_at', '') }}">
+      </label>
+      <label class="field"><span>Length</span>
+        <select name="hours">
+          {% for h in party_hours %}
+            <option value="{{ h }}" {% if form.get('hours', '2') == h | string %}selected{% endif %}>{{ h }} hour{{ 's' if h > 1 }}</option>
+          {% endfor %}
+        </select>
+      </label>
+    </div>
+    <label class="field"><span>Plan <small>(optional)</small></span>
+      <input name="description" maxlength="200" value="{{ form.get('description', '') }}" placeholder="Working through homework 5, then practice exam">
+    </label>
+    <button class="btn" type="submit">Post party</button>
+  </form>
+</div>
+{% endblock %}

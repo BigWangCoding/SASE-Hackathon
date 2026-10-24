@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+{% from "_macros.html" import player_row %}
+{% block title %}{{ party.name }}{% endblock %}
+{% block content %}
+<a class="back" href="{{ url_for('party_list') }}">← Parties</a>
+<div class="split">
+  <section>
+    <p class="code">{{ party.course }}</p>
+    <h1>{{ party.name }}</h1>
+    <p class="lead">
+      {{ party.place.name }}{% if party.spot %}, {{ party.spot }}{% endif %}<br>
+      {{ party.starts_at | when }} to {{ party.ends_at | clock }}
+    </p>
+    <p class="caption">
+      {% if ended %}This party has ended.
+      {% elif party.live %}<span class="live">Meeting now.</span>
+      {% else %}Hasn't started yet.{% endif %}
+      {{ party.member_count }} of {{ party.capacity }} spots taken · led by {{ party.leader_name }}
+    </p>
+    {% if party.description %}<p>{{ party.description }}</p>{% endif %}
+
+    {% if not ended %}
+      <div class="actions">
+        {% if is_member %}
+          {% if g.fight and g.fight.party_id == party.id %}
+            <span class="live">You're studying with this party.</span>
+          {% elif party.live %}
+            <form method="post" action="{{ url_for('party_study', party_id=party.id) }}">
+              <button class="btn" type="submit" {% if g.fight %}disabled title="Finish your current session first"{% endif %}>Start studying with the party</button>
+            </form>
+          {% else %}
+            <span class="caption">You can start a session here once the party begins.</span>
+          {% endif %}
+          {% if is_leader %}
+            <form method="post" action="{{ url_for('disband_party', party_id=party.id) }}">
+              <button class="btn quiet" type="submit">End party</button>
+            </form>
+          {% else %}
+            <form method="post" action="{{ url_for('leave_party', party_id=party.id) }}">
+              <button class="btn quiet" type="submit">Leave</button>
+            </form>
+          {% endif %}
+        {% elif party.member_count < party.capacity %}
+          <form method="post" action="{{ url_for('join_party', party_id=party.id) }}">
+            <button class="btn" type="submit">Join this party</button>
+          </form>
+        {% else %}
+          <span class="caption">This party is full.</span>
+        {% endif %}
+      </div>
+    {% endif %}
+  </section>
+
+  <section>
+    <h2>Who's in</h2>
+    <div class="rows">
+      {% for m in members %}
+        {% call player_row(m, studying=m.id in fighting) %}
+          {% if m.id == party.leader_id %}<span class="caption">Leader</span>{% endif %}
+        {% endcall %}
+      {% endfor %}
+    </div>
+  </section>
+</div>
+{% endblock %}

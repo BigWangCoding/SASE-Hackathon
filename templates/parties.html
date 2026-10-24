@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% from "_macros.html" import party_row %}
+{% block title %}Parties{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>Parties</h1>
+    <p class="caption">Study groups meeting on campus. Studying with 2+ party members earns {{ rewards.bonus }}% more.</p>
+  </div>
+  <a class="btn" href="{{ url_for('party_new') }}">Start a party</a>
+</div>
+
+<form class="inline-form" method="get" style="margin: 20px 0">
+  <input name="q" value="{{ q }}" placeholder="Class, party name, or place (CHEM, CS 2413, Bizzell)" style="flex: 1">
+  <button class="btn quiet" type="submit">Search</button>
+  {% if q %}<a href="{{ url_for('party_list') }}">Clear</a>{% endif %}
+</form>
+
+{% for title, group in sections if group %}
+  <h2>{{ title }}</h2>
+  <div class="rows">{% for p in group %}{{ party_row(p, joined=p.id in mine) }}{% endfor %}</div>
+{% else %}
+  <p class="empty">
+    No open parties{% if q %} match "{{ q }}"{% endif %}. <a href="{{ url_for('party_new') }}">Start one</a> and classmates can join you.
+  </p>
+{% endfor %}
+{% endblock %}

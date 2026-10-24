@@ -1,62 +1,62 @@
 {% extends "base.html" %}
-{% from "_macros.html" import room_card, course_chips %}
-{% block title %}Dashboard{% endblock %}
+{% from "_macros.html" import party_row, player_row, friend_button %}
+{% block title %}Home{% endblock %}
 {% block content %}
-<div class="page-head">
-  <div>
-    <h1>Hey, {{ g.user.name.split()[0] }}</h1>
-    <p class="muted">{{ g.user.major }} · {{ g.user.year }}</p>
-    {{ course_chips(g.user.courses | courses) }}
-  </div>
-  <a class="btn" href="{{ url_for('new_room') }}">+ Post where you're studying</a>
+{% set lv = level_info(g.user.xp) %}
+<h1>Hi, {{ g.user.name.split()[0] }}</h1>
+<p class="caption">Level {{ lv.level }} {{ lv.title }} · {{ lv.progress | num }} of {{ lv.cost | num }} XP to level {{ lv.level + 1 }}</p>
+<div class="progress"><span style="width: {{ lv.percent }}%"></span></div>
+
+{% if not g.fight %}
+  <h2>Start studying</h2>
+  <form class="inline-form" method="post" action="{{ url_for('start_session') }}">
+    <select name="dungeon" aria-label="Where are you studying?">
+      {% for key, d in dungeons.items() %}<option value="{{ key }}">{{ d.name }}</option>{% endfor %}
+    </select>
+    <button class="btn" type="submit">Start the clock</button>
+  </form>
+  <p class="caption">
+    {{ rewards.cc }} CC and {{ rewards.xp }} XP per minute, up to {{ rewards.max_hours }} hours.
+    Join a party below and you get {{ rewards.bonus }}% more.
+  </p>
+{% endif %}
+
+<div class="stat-line">
+  <div><b>{{ g.user.cc | num }}</b><span>Crimson Crystals</span></div>
+  <div><b>{{ g.user.study_minutes | hours }}</b><span>studied</span></div>
+  <div><b>{{ g.user.raids }}</b><span>raids</span></div>
+  <div><b>{{ friend_count }}</b><span>friends</span></div>
 </div>
 
-{% if my_rooms %}
-  <h2>You're studying in</h2>
-  <div class="grid">
-    {% for r in my_rooms %}{{ room_card(r, joined=True) }}{% endfor %}
-  </div>
-{% endif %}
+<div class="split">
+  <section>
+    {% if my_parties %}
+      <h2>Your parties</h2>
+      <div class="rows">{% for p in my_parties %}{{ party_row(p, joined=True) }}{% endfor %}</div>
+    {% endif %}
 
-<h2>Open rooms for your classes</h2>
-{% if suggested %}
-  <div class="grid">
-    {% for r in suggested %}{{ room_card(r) }}{% endfor %}
-  </div>
-{% else %}
-  <div class="empty">
-    Nobody's studying your classes right now.
-    <a href="{{ url_for('new_room') }}">Post a room</a> and be the first, or
-    <a href="{{ url_for('rooms') }}">browse all rooms</a>.
-  </div>
-{% endif %}
+    <h2>Parties for your classes</h2>
+    <div class="rows">
+      {% for p in suggested %}
+        {{ party_row(p) }}
+      {% else %}
+        <p class="empty">Nobody has a party for your classes yet. <a href="{{ url_for('party_new') }}">Start one.</a></p>
+      {% endfor %}
+    </div>
+    <p class="actions"><a href="{{ url_for('party_list') }}">All open parties</a> · <a href="{{ url_for('party_new') }}">Start a party</a></p>
+  </section>
 
-<h2>Students like you</h2>
-{% if matches %}
-  <div class="grid">
-    {% for m in matches %}
-      <div class="card">
-        <h3>{{ m.user.name }}</h3>
-        <p class="muted">{{ m.user.major }} · {{ m.user.year }}{% if m.same_major %} · same major{% endif %}</p>
-        {% if m.shared %}
-          <p>Shared classes:</p>
-          {{ course_chips(m.shared) }}
-        {% endif %}
-        {% if m.other_depts %}
-          <p class="muted">Also taking {{ m.other_depts | join(', ') }} classes</p>
-        {% endif %}
-        {% set room = studying_now.get(m.user.id) %}
-        {% if room %}
-          <p class="live">
-            Studying {{ room.course }} now in
-            <a href="{{ url_for('room_detail', room_id=room.id) }}">{{ room.building }}, {{ room.room_number }}</a>
-          </p>
-        {% endif %}
-        <p><a href="mailto:{{ m.user.email }}">{{ m.user.email }}</a></p>
-      </div>
-    {% endfor %}
-  </div>
-{% else %}
-  <div class="empty">No matches yet. As more students sign up, classmates will show up here.</div>
-{% endif %}
+  <section>
+    <h2>Classmates</h2>
+    <div class="rows">
+      {% for m in matches %}
+        {% call player_row(m.user, m.reason, studying=m.user.id in studying) %}
+          {{ friend_button(m.user.id, relations.get(m.user.id)) }}
+        {% endcall %}
+      {% else %}
+        <p class="empty">Nobody shares your classes yet.</p>
+      {% endfor %}
+    </div>
+  </section>
+</div>
 {% endblock %}

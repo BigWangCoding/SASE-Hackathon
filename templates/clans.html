@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% block title %}Clans{% endblock %}
+
+{% macro clan_table(clans) %}
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr><th>Clan</th><th>Type</th><th class="num">Members</th><th class="num">CC earned</th><th class="num">Studied</th></tr>
+      </thead>
+      <tbody>
+        {% for c in clans %}
+          <tr>
+            <td><a class="who" href="{{ url_for('clan_detail', clan_id=c.id) }}"><span class="emblem">{{ c.emblem }}</span>{{ c.name }}</a></td>
+            <td>{{ c.kind }}</td>
+            <td class="num">{{ c.members }}</td>
+            <td class="num">{{ c.cc | num }}</td>
+            <td class="num">{{ c.study | hours }}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+{% endmacro %}
+
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>Clans</h1>
+    <p class="caption">Clubs, fraternities, sororities, and teams. A clan's totals are the sum of everything its members earn.</p>
+  </div>
+  <a class="btn" href="{{ url_for('clan_new') }}">Create a clan</a>
+</div>
+
+{% if mine %}
+  <h2>Your clans</h2>
+  {{ clan_table(mine) }}
+{% endif %}
+
+<h2>{{ "Other clans" if mine else "All clans" }}</h2>
+{% if others %}{{ clan_table(others) }}{% else %}<p class="empty">No other clans yet.</p>{% endif %}
+{% endblock %}

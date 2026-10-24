@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% block title %}Raids{% endblock %}
+{% block content %}
+<h1>Raids</h1>
+<p class="lead">
+  Raids will be real OU events, pulled from OU Engage. This part isn't live yet.
+</p>
+<p>When it is, you'll be able to:</p>
+<ol class="steps">
+  <li>Browse what's happening on campus this week.</li>
+  <li>Form a raid party with friends or people from your clan who are going to the same event.</li>
+  <li>Check in at the event to earn CC and XP for you and your clan.</li>
+</ol>
+<p class="caption">Raids you've attended so far: {{ g.user.raids }}</p>
+{% endblock %}

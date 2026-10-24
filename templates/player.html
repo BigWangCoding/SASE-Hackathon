@@ -1,0 +1,78 @@
+{% extends "base.html" %}
+{% from "_macros.html" import course_tags, friend_button %}
+{% block title %}{{ player.name }}{% endblock %}
+{% block content %}
+{% set lv = level_info(player.xp) %}
+<div class="split">
+  <section>
+    <h1>{{ player.name }}</h1>
+    <p class="caption">
+      {{ player.major }} · {{ player.year }}{% if player.gender != "Prefer not to say" %} · {{ player.gender }}{% endif %}
+    </p>
+    {% if studying %}<p class="live">Studying now at {{ place(studying.dungeon).name }}</p>{% endif %}
+    {{ course_tags(player.courses | courses) }}
+
+    <p class="caption">Level {{ lv.level }} {{ lv.title }} · {{ lv.progress | num }} of {{ lv.cost | num }} XP to level {{ lv.level + 1 }}</p>
+    <div class="progress"><span style="width: {{ lv.percent }}%"></span></div>
+
+    <div class="actions">
+      {% if player.id == g.user.id %}
+        <a class="btn" href="{{ url_for('avatar_page') }}">Change avatar</a>
+        <a class="btn quiet" href="{{ url_for('profile') }}">Edit profile</a>
+      {% else %}
+        {{ friend_button(player.id, relation) }}
+        {% if relation in ("friends", "sent") %}
+          <form method="post" action="{{ url_for('remove_friend', user_id=player.id) }}">
+            {{ next_field() }}
+            <button class="btn quiet small" type="submit">{{ "Unfriend" if relation == "friends" else "Cancel request" }}</button>
+          </form>
+        {% endif %}
+      {% endif %}
+    </div>
+
+    <div class="stat-line">
+      <div><b>{{ player.xp | num }}</b><span>XP</span></div>
+      <div><b>{{ player.cc | num }}</b><span>CC now ({{ player.cc_earned | num }} earned)</span></div>
+      <div><b>{{ player.study_minutes | hours }}</b><span>studied</span></div>
+      <div><b>{{ player.raids }}</b><span>raids</span></div>
+      <div><b>{{ friend_count }}</b><span>friends</span></div>
+    </div>
+
+    <h2>Recent study sessions</h2>
+    {% if runs %}
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Where</th><th>When</th><th class="num">Time</th><th class="num">Earned</th></tr></thead>
+          <tbody>
+            {% for r in runs %}
+              <tr>
+                <td>{{ place(r.dungeon).name }}{% if r.party_id %} <span class="caption">with party</span>{% endif %}</td>
+                <td>{{ r.ended_at | when }}</td>
+                <td class="num">{{ r.minutes | hours }}</td>
+                <td class="num">{{ r.cc }} CC, {{ r.xp }} XP</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% else %}
+      <p class="empty">No finished sessions yet.</p>
+    {% endif %}
+  </section>
+
+  <section>
+    <div class="figure">{{ avatar_svg(player, 180) }}</div>
+    <h2>Clans</h2>
+    <div class="rows">
+      {% for c in clans %}
+        <a class="row" href="{{ url_for('clan_detail', clan_id=c.id) }}">
+          <span class="emblem">{{ c.emblem }}</span>
+          <span class="grow"><strong>{{ c.name }}</strong><span class="caption">{{ c.kind }}</span></span>
+        </a>
+      {% else %}
+        <p class="empty">Not in a clan.</p>
+      {% endfor %}
+    </div>
+  </section>
+</div>
+{% endblock %}

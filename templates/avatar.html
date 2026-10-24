@@ -1,0 +1,78 @@
+{% extends "base.html" %}
+{% block title %}Avatar shop{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>Avatar shop</h1>
+    <p class="caption">You have {{ g.user.cc | num }} Crimson Crystals. Each item is shown on your avatar before you buy it.</p>
+  </div>
+</div>
+
+<div class="split" style="grid-template-columns: minmax(0, 1fr) minmax(0, 3fr)">
+  <section>
+    <div class="figure">{{ avatar_svg(g.user, 170) }}</div>
+
+    <h2>Skin tone</h2>
+    <form method="post" action="{{ url_for('set_skin') }}" class="swatches">
+      {{ next_field() }}
+      {% for tone in skin_tones %}
+        <button type="submit" name="skin" value="{{ tone }}" class="swatch{% if tone == g.user.skin %} chosen{% endif %}"
+                style="background: {{ tone }}" aria-label="Skin tone {{ loop.index }}"></button>
+      {% endfor %}
+    </form>
+
+    <h2>Wearing</h2>
+    <div class="rows">
+      {% for key, label in slots.items() %}
+        <div class="row">
+          <div class="grow">
+            <span class="caption">{{ label }}</span>
+            {{ catalog[outfit[key]].name if key in outfit else "Nothing" }}
+          </div>
+          {% if key in outfit and key not in required %}
+            <form method="post" action="{{ url_for('unequip', slot=key) }}">
+              {{ next_field() }}
+              <button class="btn quiet small" type="submit">Remove</button>
+            </form>
+          {% endif %}
+        </div>
+      {% endfor %}
+    </div>
+  </section>
+
+  <section>
+    <nav class="tabs">
+      <a href="{{ url_for('avatar_page') }}"{% if not slot %} class="active"{% endif %}>All</a>
+      {% for key, label in slots.items() %}
+        <a href="{{ url_for('avatar_page', slot=key) }}"{% if slot == key %} class="active"{% endif %}>{{ label }}</a>
+      {% endfor %}
+    </nav>
+    <div class="shop-grid">
+      {% for item_id, item in items.items() %}
+        <div class="item">
+          {{ avatar_svg(g.user, 90, try_on=item_id) }}
+          <h3>{{ item.name }}</h3>
+          <div class="item-foot">
+            {% if outfit.get(item.slot) == item_id %}
+              <span class="caption">Wearing</span>
+            {% elif item_id in owned %}
+              <span class="caption">Owned</span>
+              <form method="post" action="{{ url_for('equip_item', item_id=item_id) }}">
+                {{ next_field() }}
+                <button class="btn quiet small" type="submit">Wear</button>
+              </form>
+            {% else %}
+              <span class="price">{{ item.price }} CC</span>
+              <form method="post" action="{{ url_for('buy_item', item_id=item_id) }}">
+                {{ next_field() }}
+                <button class="btn small" type="submit"
+                        {% if g.user.cc < item.price %}disabled title="You need {{ item.price - g.user.cc }} more CC"{% endif %}>Buy</button>
+              </form>
+            {% endif %}
+          </div>
+        </div>
+      {% endfor %}
+    </div>
+  </section>
+</div>
+{% endblock %}

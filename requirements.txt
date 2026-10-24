@@ -1,2 +1,5 @@
 Flask>=3.0
 segno>=1.6
+psycopg[binary]>=3.2
+psycopg-pool>=3.2
+gunicorn>=22.0

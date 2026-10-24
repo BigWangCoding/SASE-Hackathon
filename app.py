@@ -4,7 +4,6 @@ import hmac
 import json
 import os
 import re
-import sqlite3
 from collections import Counter
 from datetime import datetime, timedelta
 from functools import wraps
@@ -16,6 +15,7 @@ from werkzeug.security import check_password_hash, generate_password_hash
 
 import avatar
 import campus
+import db as db_module
 import icons
 import pets
 import raids as raid_feed
@@ -23,6 +23,8 @@ import raids as raid_feed
 app = Flask(__name__)
 app.config["SECRET_KEY"] = os.environ.get("SECRET_KEY", "dev-only-change-me")
 app.config["SESSION_COOKIE_SAMESITE"] = "Lax"  # don't send the login cookie on cross-site form posts
+# Local development uses this SQLite file. Set DATABASE_URL (a Supabase Postgres connection string)
+# to store everything in Supabase instead; see db.py.
 DATABASE = os.path.join(app.root_path, "soonerbuddies.db")
 
 # Only OU addresses can sign up. Set to "" to allow any email (handy for testing).
@@ -107,10 +109,13 @@ def place(key):
 
 def get_db():
     if "db" not in g:
-        g.db = sqlite3.connect(DATABASE)
-        g.db.row_factory = sqlite3.Row
-        g.db.execute("PRAGMA foreign_keys = ON")
+        g.db = db_module.connect(DATABASE)
     return g.db
+
+
+def insert(db, sql, params):
+    """Run an INSERT and return the new row's id (works on SQLite and Postgres)."""
+    return db.execute(sql + " RETURNING id", params).fetchone()[0]
 
 
 @app.teardown_appcontext
@@ -141,6 +146,12 @@ ADDED_COLUMNS = {
 
 def init_db():
     db = get_db()
+    if db_module.USING_POSTGRES:
+        # Several web workers start at once; the lock makes them create tables one at a time.
+        with app.open_resource("schema_postgres.sql") as f:  # already has every column
+            db.executescript("SELECT pg_advisory_xact_lock(727274);\n" + f.read().decode())
+        db.commit()
+        return
     with app.open_resource("schema.sql") as f:
         db.executescript(f.read().decode())
     for table, columns in ADDED_COLUMNS.items():
@@ -280,6 +291,7 @@ PARTY_SELECT = """
     LEFT JOIN party_members m ON m.party_id = p.id
     LEFT JOIN raids r ON r.id = p.raid_id
 """
+PARTY_GROUP = "GROUP BY p.id, u.name, r.at_vs, r.opponent"  # Postgres wants every non-summed column listed
 
 
 def party_info(row):
@@ -296,7 +308,7 @@ def party_info(row):
 def open_parties(search=""):
     """Study parties that haven't ended, soonest first. `search` matches class, name, or dungeon."""
     rows = get_db().execute(
-        PARTY_SELECT + " WHERE p.ends_at > ? AND p.raid_id IS NULL GROUP BY p.id ORDER BY p.starts_at", (now(),)
+        PARTY_SELECT + " WHERE p.ends_at > ? AND p.raid_id IS NULL " + PARTY_GROUP + " ORDER BY p.starts_at", (now(),)
     ).fetchall()
     parties = [party_info(row) for row in rows]
     if search:
@@ -307,7 +319,7 @@ def open_parties(search=""):
 
 
 def get_party(party_id):
-    row = get_db().execute(PARTY_SELECT + " WHERE p.id = ? GROUP BY p.id", (party_id,)).fetchone()
+    row = get_db().execute(PARTY_SELECT + " WHERE p.id = ? " + PARTY_GROUP, (party_id,)).fetchone()
     if row is None:
         abort(404)
     return party_info(row)
@@ -439,19 +451,20 @@ def friend_count(user_id):
 # A clan's stats are the sums of its members' stats.
 CLAN_SELECT = """
     SELECT c.*, f.name AS founder_name, COUNT(m.user_id) AS members,
-           COALESCE(SUM(u.xp), 0) AS xp,
-           COALESCE(SUM(u.cc_earned), 0) AS cc,
-           COALESCE(SUM(u.study_minutes), 0) AS study,
-           COALESCE(SUM(u.raids), 0) AS raids
+           CAST(COALESCE(SUM(u.xp), 0) AS INTEGER) AS xp,
+           CAST(COALESCE(SUM(u.cc_earned), 0) AS INTEGER) AS cc,
+           CAST(COALESCE(SUM(u.study_minutes), 0) AS INTEGER) AS study,
+           CAST(COALESCE(SUM(u.raids), 0) AS INTEGER) AS raids
     FROM clans c
     LEFT JOIN users f ON f.id = c.founder_id
     LEFT JOIN clan_members m ON m.clan_id = c.id
     LEFT JOIN users u ON u.id = m.user_id
 """
+CLAN_GROUP = "GROUP BY c.id, f.name"
 
 
 def get_clan(clan_id):
-    clan = get_db().execute(CLAN_SELECT + " WHERE c.id = ? GROUP BY c.id", (clan_id,)).fetchone()
+    clan = get_db().execute(CLAN_SELECT + " WHERE c.id = ? " + CLAN_GROUP, (clan_id,)).fetchone()
     if clan is None:
         abort(404)
     return clan
@@ -654,19 +667,20 @@ def signup():
         if not error:
             db = get_db()
             try:
-                cur = db.execute(
+                new_id = insert(db,
                     "INSERT INTO users (email, password_hash, cc, name, gender, major, year, courses, role)"
                     " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
                     (form["email"].strip().lower(), generate_password_hash(form["password"]), STARTING_CC,
                      *profile_values(form)),
                 )
-                set_title(cur.lastrowid, "role" if form.get("role", "Student") in ROLE_TITLES else "year")
+                set_title(new_id, "role" if form.get("role", "Student") in ROLE_TITLES else "year")
                 db.commit()
-            except sqlite3.IntegrityError:
+            except db_module.IntegrityError:
+                db.rollback()
                 error = "An account with that email already exists."
             else:
                 session.clear()
-                session["user_id"] = cur.lastrowid
+                session["user_id"] = new_id
                 flash(f"Welcome, adventurer! Here's {STARTING_CC} Crimson Crystals to style your avatar.")
                 return redirect(url_for("dashboard"))
         flash(error, "error")
@@ -876,7 +890,7 @@ def summon_pet():
     pet_id, pity = pets.summon(g.user["pet_pity"])
     db = get_db()
     is_new = db.execute(
-        "INSERT OR IGNORE INTO user_pets (user_id, pet_id, obtained_at) VALUES (?, ?, ?)", (g.user["id"], pet_id, now())
+        "INSERT INTO user_pets (user_id, pet_id, obtained_at) VALUES (?, ?, ?) ON CONFLICT DO NOTHING", (g.user["id"], pet_id, now())
     ).rowcount == 1
     refund = 0 if is_new else pets.DUPLICATE_REFUND
     db.execute(
@@ -950,7 +964,7 @@ def party_new():
         else:
             start = max(start, datetime.now())
             db = get_db()
-            cur = db.execute(
+            new_id = insert(db,
                 "INSERT INTO parties (leader_id, name, course, dungeon, spot, description, capacity, starts_at, ends_at)"
                 " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
                 (g.user["id"], name, course, dungeon, form.get("spot", "").strip()[:60],
@@ -959,11 +973,11 @@ def party_new():
             )
             db.execute(
                 "INSERT INTO party_members (party_id, user_id, joined_at) VALUES (?, ?, ?)",
-                (cur.lastrowid, g.user["id"], now()),
+                (new_id, g.user["id"], now()),
             )
             db.commit()
             flash("Your party is up! Classmates taking that class will see it first.")
-            return redirect(url_for("party_detail", party_id=cur.lastrowid))
+            return redirect(url_for("party_detail", party_id=new_id))
     return render_template("party_new.html", form=form)
 
 
@@ -1000,7 +1014,7 @@ def join_party(party_id):
     else:
         db = get_db()
         db.execute(
-            "INSERT OR IGNORE INTO party_members (party_id, user_id, joined_at) VALUES (?, ?, ?)",
+            "INSERT INTO party_members (party_id, user_id, joined_at) VALUES (?, ?, ?) ON CONFLICT DO NOTHING",
             (party_id, g.user["id"], now()),
         )
         db.commit()
@@ -1233,14 +1247,14 @@ def raid_new():
                  form.get("description", "").strip()[:300], now(), g.user["id"], place_key),
             )
             # The host's own raid party, so people can join right away.
-            cur = db.execute(
+            new_id = insert(db,
                 "INSERT INTO parties (leader_id, name, course, dungeon, spot, description, capacity, starts_at, ends_at, raid_id)"
                 " VALUES (?, ?, ?, 'other', ?, '', 20, ?, ?, ?)",
                 (g.user["id"], f"{g.user['name'].split()[0]}'s crew", category, CAMPUS_PLACES[place_key],
                  stamp(start), stamp(end), raid_id),
             )
             db.execute("INSERT INTO party_members (party_id, user_id, joined_at) VALUES (?, ?, ?)",
-                       (cur.lastrowid, g.user["id"], now()))
+                       (new_id, g.user["id"], now()))
             db.commit()
             flash(f"Raid created. Boost it for {BOOST_CC} CC to pin it to the top of the Raids tab.")
             return redirect(url_for("raid_detail", raid_id=raid_id))
@@ -1277,7 +1291,7 @@ def raid_boost(raid_id):
 def raid_detail(raid_id):
     raid = get_raid(raid_id)
     rows = get_db().execute(
-        PARTY_SELECT + " WHERE p.raid_id = ? AND p.ends_at > ? GROUP BY p.id ORDER BY p.starts_at", (raid_id, now())
+        PARTY_SELECT + " WHERE p.raid_id = ? AND p.ends_at > ? " + PARTY_GROUP + " ORDER BY p.starts_at", (raid_id, now())
     ).fetchall()
     # Suggest meeting an hour before the start, when the start time is known.
     start = datetime.fromisoformat(raid["starts_at"])
@@ -1321,7 +1335,7 @@ def raid_party_new(raid_id):
         flash("Pick a party size from 2 to 20.", "error")
     else:
         db = get_db()
-        cur = db.execute(
+        new_id = insert(db,
             "INSERT INTO parties (leader_id, name, course, dungeon, spot, description, capacity, starts_at, ends_at, raid_id)"
             " VALUES (?, ?, ?, 'other', ?, ?, ?, ?, ?, ?)",
             (g.user["id"], name, raid["sport"], spot, form.get("description", "").strip()[:200], capacity,
@@ -1329,11 +1343,11 @@ def raid_party_new(raid_id):
         )
         db.execute(
             "INSERT INTO party_members (party_id, user_id, joined_at) VALUES (?, ?, ?)",
-            (cur.lastrowid, g.user["id"], now()),
+            (new_id, g.user["id"], now()),
         )
         db.commit()
         flash(f"Raid party posted for {raid['title']}.")
-        return redirect(url_for("party_detail", party_id=cur.lastrowid))
+        return redirect(url_for("party_detail", party_id=new_id))
     return redirect(url_for("raid_detail", raid_id=raid_id))
 
 
@@ -1504,7 +1518,7 @@ def discover():
 @app.route("/clans")
 @login_required
 def clan_list():
-    clans = get_db().execute(CLAN_SELECT + " GROUP BY c.id ORDER BY xp DESC").fetchall()
+    clans = get_db().execute(CLAN_SELECT + " " + CLAN_GROUP + " ORDER BY xp DESC").fetchall()
     mine = my_clan_ids()
     return render_template(
         "clans.html",
@@ -1527,20 +1541,21 @@ def clan_new():
         else:
             db = get_db()
             try:
-                cur = db.execute(
+                new_id = insert(db,
                     "INSERT INTO clans (name, kind, emblem, description, founder_id) VALUES (?, ?, ?, ?, ?)",
                     (name, kind, emblem, form.get("description", "").strip()[:200], g.user["id"]),
                 )
-            except sqlite3.IntegrityError:
+            except db_module.IntegrityError:
+                db.rollback()
                 flash("A clan with that name already exists.", "error")
             else:
                 db.execute(
                     "INSERT INTO clan_members (clan_id, user_id, joined_at) VALUES (?, ?, ?)",
-                    (cur.lastrowid, g.user["id"], now()),
+                    (new_id, g.user["id"], now()),
                 )
                 db.commit()
                 flash(f"{name} is founded! Invite your members to join.")
-                return redirect(url_for("clan_detail", clan_id=cur.lastrowid))
+                return redirect(url_for("clan_detail", clan_id=new_id))
     return render_template("clan_new.html", form=form)
 
 
@@ -1563,7 +1578,7 @@ def join_clan(clan_id):
     clan = get_clan(clan_id)
     db = get_db()
     db.execute(
-        "INSERT OR IGNORE INTO clan_members (clan_id, user_id, joined_at) VALUES (?, ?, ?)",
+        "INSERT INTO clan_members (clan_id, user_id, joined_at) VALUES (?, ?, ?) ON CONFLICT DO NOTHING",
         (clan_id, g.user["id"], now()),
     )
     db.commit()
@@ -1606,7 +1621,7 @@ def leaderboard():
     if board == "clans":
         mine = my_clan_ids()
         rows = [{"clan": c, "value": c[column], "me": c["id"] in mine}
-                for c in db.execute(CLAN_SELECT + f" GROUP BY c.id ORDER BY {column} DESC, c.name LIMIT 25")]
+                for c in db.execute(CLAN_SELECT + " " + CLAN_GROUP + f" ORDER BY {column} DESC, c.name LIMIT 25")]
     else:
         rows = [{"user": u, "value": u[column], "me": u["id"] == g.user["id"]}
                 for u in db.execute(f"SELECT * FROM users ORDER BY {column} DESC, name LIMIT 25")]
@@ -1730,7 +1745,7 @@ def add_friend(user_id):
     other = get_user(user_id)
     if user_id != g.user["id"]:
         db = get_db()
-        db.execute("INSERT OR IGNORE INTO friendships (user_id, friend_id) VALUES (?, ?)", (g.user["id"], user_id))
+        db.execute("INSERT INTO friendships (user_id, friend_id) VALUES (?, ?) ON CONFLICT DO NOTHING", (g.user["id"], user_id))
         db.commit()
         if friend_relations().get(user_id) == "friends":
             flash(f"You and {other['name']} are now friends!")

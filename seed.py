@@ -6,13 +6,21 @@ Every demo account uses the password "password123". Log in as demo@ou.edu to see
 the app from a new player's point of view.
 """
 import json
+import sys
 from datetime import datetime, timedelta
 
 from werkzeug.security import generate_password_hash
 
-import avatar
-import raids as raid_feed
-from app import CAMPUS_PLACES, CUSTOM_RAID_ID_START, app, get_db, set_title, stamp
+import db as db_module
+
+# Seeding deletes every account, so it only runs against the local SQLite file, never Supabase.
+if db_module.USING_POSTGRES:
+    sys.exit("seed.py wipes all data, so it won't run while DATABASE_URL points at Supabase. "
+             "Unset DATABASE_URL to seed your local database.")
+
+import avatar  # noqa: E402
+import raids as raid_feed  # noqa: E402
+from app import CAMPUS_PLACES, CUSTOM_RAID_ID_START, app, get_db, set_title, stamp  # noqa: E402
 
 PASSWORD = "password123"
 

@@ -91,9 +91,63 @@ and each real second counts as one study minute.
 
 To let any email sign up while testing, set `EMAIL_DOMAIN = ""` in `app.py`.
 
+## Deploy it with a Supabase database (live demo)
+
+All data (accounts, CC, pets, chat, clans, parties, raids) is stored in the team's Supabase
+project. Nothing is pre-filled: the data is whoever signs up.
+
+### Where the data goes
+
+- **Database:** Supabase project `qeqrzsszxdkbcgusbtgh`, inside its own schema, **`sooner_buddies`**.
+  The static `index.html` version's tables stay in `public`, untouched. In Supabase's
+  **Table Editor**, pick `sooner_buddies` from the schema dropdown to see the data.
+- **Connection:** the app connects through the **Session pooler**
+  (`aws-1-us-west-2.pooler.supabase.com:5432`). The direct `db.<ref>.supabase.co` address is
+  IPv6-only, and Render can't reach it.
+- **The password lives in `.env`**, a local file git ignores. The app loads it automatically, so
+  `python app.py` on your laptop reads and writes the live Supabase database. To work offline
+  against a local SQLite file instead, set `DATABASE_URL` to an empty value
+  (PowerShell: `$env:DATABASE_URL=""`). `.env.example` shows the format for teammates.
+- **Security:** every table has row-level security, and the schema isn't served by Supabase's
+  public REST API, so the publishable key (the one in `index.html`) can't read password hashes or
+  change anything. Only this server, which holds the secret connection string, can.
+
+The app creates its schema and tables on first start (`schema_postgres.sql`; you can also run that
+in Supabase's SQL Editor).
+
+### Host the website on Render (free) with `render.yaml`
+
+`render.yaml` describes the whole website for Render: build and start commands, Python version,
+and environment variables.
+
+1. Commit and push to GitHub (`.env` stays local because it's in `.gitignore`).
+2. On [render.com](https://render.com), sign in with GitHub and click **New + → Blueprint**.
+3. Pick the `SASE-Hackathon` repo. Render reads `render.yaml` and shows a `sooner-buddies` web service.
+4. It asks for **`DATABASE_URL`**. Paste the `DATABASE_URL` value from your `.env` file
+   (it starts with `postgresql://postgres.qeqrzsszxdkbcgusbtgh:`). `SECRET_KEY` is generated for you.
+5. Click **Apply**. After the build (a few minutes), open the `https://sooner-buddies-....onrender.com`
+   link, sign up, and the new account appears in Supabase under `sooner_buddies → users`.
+
+Every push to GitHub redeploys automatically, and nothing is lost, because the data is in
+Supabase. The free tier sleeps after 15 minutes without visitors, so the first load after that
+takes about 30 seconds. Open the site a minute before you demo.
+
+Other hosts (Railway, Fly.io, PythonAnywhere) work the same way: `pip install -r requirements.txt`,
+start with `gunicorn app:app --workers 2 --threads 4 --timeout 60`, and set `DATABASE_URL` and
+`SECRET_KEY` as environment variables.
+
+### Things to know
+
+- **Don't run `seed.py` against Supabase.** It deletes every account, so it refuses to run while
+  `DATABASE_URL` is set and only ever touches a local SQLite file.
+- **Raids** sync from SoonerSports.com into Supabase on their own when someone opens the Raids tab.
+- **Change the database password before going public.** It has been shared in chat. In Supabase:
+  **Project Settings → Database → Reset database password**, then update `.env` and the
+  `DATABASE_URL` on Render.
+
 ## How it's built
 
-Flask + SQLite, server-rendered HTML, no build step. JavaScript is limited to the session timer,
+Flask + SQLite locally / Supabase Postgres in production, server-rendered HTML, no build step. JavaScript is limited to the session timer,
 chat polling, the map (Leaflet), and the QR scanner (jsQR). Both libraries are copied into
 `static/vendor/` with their licenses; QR codes are made server-side with `segno`.
 
@@ -105,6 +159,8 @@ chat polling, the map (Leaflet), and the QR scanner (jsQR). Both libraries are c
 | `icons.py` | Dungeon room illustrations and raid icons |
 | `campus.py` | Campus outline and building coordinates for the map (from OpenStreetMap) |
 | `raids.py` | Pulls events from the SoonerSports.com calendar feed (`python raids.py` syncs by hand) |
+| `db.py` | Connects to Supabase Postgres when `DATABASE_URL` is set, otherwise the local SQLite file |
+| `schema_postgres.sql` | The tables for Supabase (run automatically, or paste into the SQL Editor) |
 | `schema.sql` | Database tables, created automatically on startup |
 | `seed.py` | Demo data for presentations |
 | `templates/` | Jinja HTML pages |

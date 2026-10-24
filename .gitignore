@@ -3,3 +3,6 @@ __pycache__/
 .venv/
 venv/
 *.db
+
+# Secrets: database password and session key. Never commit these.
+.env

@@ -1,0 +1,21 @@
+# Render Blueprint: hosts Sooner Buddies as a website, with all data stored in Supabase.
+# In Render: New + -> Blueprint -> pick this repo. Render reads this file and asks for DATABASE_URL.
+services:
+  - type: web
+    name: sooner-buddies
+    runtime: python
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn app:app --workers 2 --threads 4 --timeout 60
+    healthCheckPath: /
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.12.7
+      # The Supabase Session pooler connection string (it's in your local .env file).
+      # sync: false means Render asks for it when you create the Blueprint instead of reading it
+      # from git, so the database password never lives in the repo.
+      - key: DATABASE_URL
+        sync: false
+      # Render makes a random one once and keeps it, so people stay logged in across redeploys.
+      - key: SECRET_KEY
+        generateValue: true
